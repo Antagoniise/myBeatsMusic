@@ -197,95 +197,6 @@ export function populateCollectionDropdown() {
 let songPlaying = null;
 let artistPlaying = null;
 let albumPlaying = null;
-/**
-export function playSong(song) {
-  if (!song) {
-    console.error("No song provided to play.");
-    return;
-  }
-
-  songPlaying = song.title;
-  artistPlaying = song.artist;
-  albumPlaying = song.album;
-  
-  loadPlayingArtistSimilar();
-
-  // Update song information
-  document.querySelectorAll(".song").forEach((songElem) => songElem.classList.remove("active"));
-  const currentSongElement = document.querySelector(`#song${song.id}`);
-  if (currentSongElement) {
-    currentSongElement.classList.add("active");
-  }
-
-  // Update the audio source and play
-  audioElement.src = song.downloadPath;
-  audioElement.play();
-
-  document.querySelectorAll(".updateSongTitle").forEach((titleElement) => {
-    titleElement.textContent = songPlaying;
-  });
-  document.querySelectorAll(".updateArtistName").forEach((artistElement) => {
-    artistElement.textContent = artistPlaying;
-  });
-  document.querySelectorAll(".updateAlbumName").forEach((albumElement) => {
-    albumElement.textContent = albumPlaying;
-  });
-
-  const albumArtPhoto = document.getElementById("nowPlayingArt");
-  const albumArtPhotoNAV = document.getElementById("smallAlbumCover");
-  const albumNowPlaying = albumPlaying.toLowerCase().replace(/\s/g, "");
-  const newAlbumCoverUrl = `https://mybeats.cloud/mediaFiles/albumCovers/${albumNowPlaying}.png`;
-
-  if (albumArtPhoto) {
-    albumArtPhoto.src = newAlbumCoverUrl;
-    albumArtPhoto.alt = albumPlaying;
-  }
-  if (albumArtPhotoNAV) {
-    albumArtPhotoNAV.src = newAlbumCoverUrl;
-    albumArtPhotoNAV.alt = albumPlaying;
-  }
-
-  const artistName = artistPlaying.replace(/\s/g, "").toLowerCase();
-  const artworkUrl = `https://mybeats.cloud/mediaFiles/artistPortraits/${artistName}.png`;
-  updateMediaSession(song, artworkUrl);
-
-  const downloadIcon = document.getElementById("download-icon");
-  downloadIcon.href = song.downloadPath;
-  downloadIcon.setAttribute("download", song.title);
-
-  audioElement.addEventListener("ended", () => {
-    isPlaying = false;
-    if (currentSongElement) currentSongElement.classList.remove("active");
-    songCardUpdate();
-    songEnd();
-  });
-
-  audioElement.addEventListener("play", () => {
-    isPlaying = true;
-    songCardUpdate();
-  });
-}
-export function songEnd() {
-  if (repeatMode === 'one') {
-    playSong(currentAlbumSongs[currentSongIndex]);
-  } else if (queue.length > 0) {
-    const nextSong = queue.shift();
-    playSong(nextSong);
-  } else if (shuffleMode) {
-    currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
-    playSong(currentAlbumSongs[currentSongIndex]);
-  } else {
-    currentSongIndex = (currentSongIndex + 1) % currentAlbumSongs.length;
-    if (currentSongIndex === 0 && repeatMode !== 'all') {
-      // Stop playback if we've reached the end and repeat all is not on
-      audioElement.pause();
-      audioElement.currentTime = 0;
-    } else {
-      playSong(currentAlbumSongs[currentSongIndex]);
-    }
-  }
-}
-**/
 function skipForward() {
   if (shuffleMode) {
     currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
@@ -741,6 +652,7 @@ export function updateActiveButton(button) {
 export function closeAllMenus() {
   document.querySelectorAll(".icon-actions").forEach((menu) => menu.classList.remove("visible"));
 }
+
 export function popOverPLAY(button, song) {
   const popoverContent = document.createElement("div");
   popoverContent.classList.add("popover-content");
@@ -789,9 +701,6 @@ export function popOverPLAY(button, song) {
     }, { once: true });
   }, 0);
 }
-
-
-
 
 
 /////////  R O U T I N G  Functions  ////////////////
@@ -1693,6 +1602,7 @@ export function songEnd() {
 
 
 
+
 function addToQueue(song) {
   const queueList = document.getElementById("myQueue");
   const newItem = createQueueItemElement(song);
@@ -1868,9 +1778,6 @@ function handleDragEnd() {
   document.querySelector(".dragging").classList.remove("dragging");
   saveQueue(queueList);
 }
-
-
-
 //////////////////////////////   E N D   //////////////////////////////////
 
 
@@ -1878,6 +1785,7 @@ function handleDragEnd() {
 
 /////////  P L A Y L I S T S  Feature  ////////////////
 /////////////////////////////////////////////////////////////////
+
 let collections = {};
 let tags = [];
 
