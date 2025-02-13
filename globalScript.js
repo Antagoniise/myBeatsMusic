@@ -30,75 +30,24 @@ const shuffleButton = document.querySelector(".shuffle");
 const repeatButton = document.querySelector(".repeat");
 const progressBar = document.createElement("div");
 const songInfoIcons = document.querySelectorAll(".song-info-icon");
-
 const dynamicArea = document.getElementById("dynamicArea");
 const dynamicAreaBottom = document.getElementById("dynamicAreaBottom");
-
 const similarArtistsPLAYING = document.getElementById("similarArtistsPLAYING");
-
 const navItems = document.querySelectorAll(".cc_sticky-nav-item");
 
-progressBar.id = "loadingBar";
-document.body.appendChild(progressBar);
-randomizeMe(musicLibrary);
-
-
-
-/////////  Play any audio on site  ////////////////
-/////////////////////////////////////////////////////////////////
 document.addEventListener("DOMContentLoaded", () => {
-  if ("launchQueue" in window && "files" in LaunchParams.prototype) {
-    launchQueue.setConsumer(async (launchParams) => {
-      const fileHandles = launchParams.files;
-      if (!fileHandles.length) return;
+  siteRouter();
+  initializeFavorites();
+  initializePopovers();
+  loadPlaylist();
+  initQueueManager();
+  addQueueSongEventListeners();
 
-      const fileHandle = fileHandles[0];
-      const file = await fileHandle.getFile();
+  document.body.appendChild(progressBar); 
+  progressBar.id = "loadingBar";
 
-      clearDynamicArea();
-      loadAudioPlayer(file);
-    });
-  }
+  randomizeMe(musicLibrary);
 });
-export function loadAudioPlayer(file) {
-  const dynamicArea = document.getElementById("dynamicArea");
-
-  const content = `
-  <div class="music-container">
-  <h2>Play Your Offline Music or Discover New Music Here</h2>
-  </div>
-  <style>
-  .music-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 20px;
-  background: #f0f0f0;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  margin-top: 20px;
-  }
-  h2 {
-  font-family: 'Arial', sans-serif;
-  font-size: 24px;
-  color: #333;
-  margin-bottom: 15px;
-  }
-  audio {
-  width: 80%;
-  max-width: 500px;
-  }
-  </style>
-  `;
-
-  dynamicArea.innerHTML = content;
-
-  const audioElement = document.querySelector("#audio");
-  audioElement.src = URL.createObjectURL(file);
-  audioElement.play().catch((err) => console.error("Audio playback error:",
-    err));
-}
 
 
 /////////  H E L P E R  Functions  ////////////////
@@ -192,12 +141,101 @@ export function populateCollectionDropdown() {
 }
 
 
-//////////////////  M U S I C  P L A Y E R  /////////////
-////////////////  Android Media Session API  //////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+/////////  M U S I C  P L A Y E R  ///////////////////////////////////////
+//////// Android Media Session API ///////////////////////////////////////
 let songPlaying = null;
 let artistPlaying = null;
 let albumPlaying = null;
-function skipForward() {
+
+/////// Actions / Events ///////
+///////////////////////////////////////
+export function playSong(song) {
+  if (!song) {
+    console.error("No song provided to play.");
+    return;
+  }
+
+  songPlaying = song.title;
+  artistPlaying = song.artist;
+  albumPlaying = song.album;
+  
+  loadPlayingArtistSimilar();
+
+  document.querySelectorAll(".song").forEach((songElem) => songElem.classList.remove("active"));
+  const currentSongElement = document.querySelector(`#song${song.id}`);
+  if (currentSongElement) {
+    currentSongElement.classList.add("active");
+  }
+
+  audioElement.src = song.downloadPath;
+  audioElement.play();
+
+  document.querySelectorAll(".updateSongTitle").forEach((titleElement) => {
+    titleElement.textContent = songPlaying;
+  });
+  document.querySelectorAll(".updateArtistName").forEach((artistElement) => {
+    artistElement.textContent = artistPlaying;
+  });
+  document.querySelectorAll(".updateAlbumName").forEach((albumElement) => {
+    albumElement.textContent = albumPlaying;
+  });
+
+  const albumArtPhoto = document.getElementById("nowPlayingArt");
+  const albumArtPhotoNAV = document.getElementById("smallAlbumCover");
+  const albumNowPlaying = albumPlaying.toLowerCase().replace(/\s/g, "");
+  const newAlbumCoverUrl = `https://mybeats.cloud/mediaFiles/albumCovers/${albumNowPlaying}.png`;
+
+  if (albumArtPhoto) {
+    albumArtPhoto.src = newAlbumCoverUrl;
+    albumArtPhoto.alt = albumPlaying;
+  }
+  if (albumArtPhotoNAV) {
+    albumArtPhotoNAV.src = newAlbumCoverUrl;
+    albumArtPhotoNAV.alt = albumPlaying;
+  }
+
+  const artistName = artistPlaying.replace(/\s/g, "").toLowerCase();
+  const artworkUrl = `https://mybeats.cloud/mediaFiles/artistPortraits/${artistName}.png`;
+  updateMediaSession(song, artworkUrl);
+
+  const downloadIcon = document.getElementById("download-icon");
+  downloadIcon.href = song.downloadPath;
+  downloadIcon.setAttribute("download", song.title);
+
+  audioElement.addEventListener("ended", () => {
+    isPlaying = false;
+    if (currentSongElement) currentSongElement.classList.remove("active");
+    songCardUpdate();
+    songEnd();
+  });
+
+  audioElement.addEventListener("play", () => {
+    isPlaying = true;
+    songCardUpdate();
+  });
+
+}
+export function songEnd() {
+  if (repeatMode === 'one') {
+    playSong(currentAlbumSongs[currentSongIndex]);
+  } else if (queue.length > 0) {
+    playNextSong();
+  } else if (shuffleMode) {
+    currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
+    playSong(currentAlbumSongs[currentSongIndex]);
+  } else {
+    currentSongIndex = (currentSongIndex + 1) % currentAlbumSongs.length;
+    if (currentSongIndex === 0 && repeatMode !== 'all') {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    } else {
+      playSong(currentAlbumSongs[currentSongIndex]);
+    }
+  }
+}
+export function skipForward() {
   if (shuffleMode) {
     currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
   } else {
@@ -205,7 +243,7 @@ function skipForward() {
   }
   playSong(currentAlbumSongs[currentSongIndex]);
 }
-function skipBackward() {
+export function skipBackward() {
   if (audioElement.currentTime > 3) {
     // If the current song has been playing for more than 3 seconds, restart it
     audioElement.currentTime = 0;
@@ -219,11 +257,11 @@ function skipBackward() {
     playSong(currentAlbumSongs[currentSongIndex]);
   }
 }
-function toggleShuffle() {
+export function toggleShuffle() {
   shuffleMode = !shuffleMode;
   shuffleButton.classList.toggle('active', shuffleMode);
 }
-function toggleRepeat() {
+export function toggleRepeat() {
   switch (repeatMode) {
     case 'off':
       repeatMode = 'one';
@@ -243,8 +281,35 @@ function toggleRepeat() {
       break;
   }
 }
+export function seek() {
+  const seekTime = (progressSlider.value / 100) * audioElement.duration;
+  audioElement.currentTime = seekTime;
+}
+export function startDragging() {
+  isDragging = true;
+  audioElement.removeEventListener("timeupdate", updateProgress);
+}
+export function stopDragging() {
+  if (isDragging) {
+    const newTime = (progressElapsed.offsetWidth / progressBarr.offsetWidth) * audioElement.duration;
+    audioElement.currentTime = newTime; // Set audio time only when dragging stops
 
+    // Resume playback if it was playing before
+    if (!audioElement.paused) {
+      audioElement.play();
+    }
+    audioElement.addEventListener("timeupdate", updateProgress);
+    isDragging = false;
+  }
+}
+export function handleDragging(e) {
+  if (isDragging) {
+    updateSlider(e); // Update slider position visually only
+  }
+}
 
+/////// UI Changes ///////
+///////////////////////////////////////
 export function updateTitle(song) {
   if (song && song.title && song.artist) {
     document.title = `${song.title} - ${song.artist}`;
@@ -333,7 +398,6 @@ export function updateMediaSession(song, artworkUrl) {
 export function updateMediaSessionPlaybackState() {
   navigator.mediaSession.playbackState = isPlaying ? "playing": "paused";
 }
-
 export function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
@@ -386,10 +450,6 @@ export function updateSlider(e) {
 
   return currentTime;
 }
-export function seek() {
-  const seekTime = (progressSlider.value / 100) * audioElement.duration;
-  audioElement.currentTime = seekTime;
-}
 export function togglePlayPauseIcons() {
   if (audioElement.paused) {
     btnPlay.style.display = "inline";
@@ -400,64 +460,18 @@ export function togglePlayPauseIcons() {
   }
   updateMediaSessionPlaybackState();
 }
-export function startDragging() {
-  isDragging = true;
-  audioElement.removeEventListener("timeupdate", updateProgress);
-}
-export function stopDragging() {
-  if (isDragging) {
-    const newTime = (progressElapsed.offsetWidth / progressBarr.offsetWidth) * audioElement.duration;
-    audioElement.currentTime = newTime; // Set audio time only when dragging stops
-
-    // Resume playback if it was playing before
-    if (!audioElement.paused) {
-      audioElement.play();
-    }
-    audioElement.addEventListener("timeupdate", updateProgress);
-    isDragging = false;
-  }
-}
-export function handleDragging(e) {
-  if (isDragging) {
-    updateSlider(e); // Update slider position visually only
-  }
-}
 
 audioElement.addEventListener("play", togglePlayPauseIcons);
 audioElement.addEventListener("pause", togglePlayPauseIcons);
 audioElement.addEventListener("loadedmetadata", () => { // Update the total time display when metadata is loaded
   totalTimeDisplay.textContent = formatTime(audioElement.duration);
-}
-);
+});
 audioElement.addEventListener("ended", () => {
   document.querySelectorAll(".song.active").forEach((songElem) => songElem.classList.remove("active"));
   togglePlayPauseIcons();
 });
 audioElement.addEventListener("timeupdate", updateProgress);
-if ("mediaSession" in navigator) {
-  navigator.mediaSession.setActionHandler("play", () => {
-    audioElement.play();
-    isPlaying = true; // Ensure correct internal state
-    updateProgress(); // Force an update when playback starts
-    togglePlayPauseIcons();
-  });
 
-  navigator.mediaSession.setActionHandler("pause", () => {
-    audioElement.pause();
-    isPlaying = false; // Ensure correct internal state
-    updateProgress(); // Force an update when playback stops
-    togglePlayPauseIcons();
-  });
-
-  navigator.mediaSession.setActionHandler("seekto", (details) => {
-    if (details.fastSeek && "fastSeek" in audioElement) {
-      audioElement.fastSeek(details.seekTime);
-    } else {
-      audioElement.currentTime = details.seekTime;
-    }
-    updateProgress();
-  });
-}
 progressSlider.addEventListener("mousedown", (e) => {
   startDragging();
   updateSlider(e);
@@ -482,8 +496,62 @@ repeatButton.addEventListener('click', toggleRepeat);
 
 
 
-/////////  P R I M A R Y  Functions  ////////////////
-/////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+/////////  P R I M A R Y  Functions  /////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+export function discoverMusic() {
+  setPage({ "data-page": "home" });
+  artistNameTitle.style.display = "none";
+  const newestArtists = musicLibrary.slice(0, 5);
+
+  setTimeout(() => {
+    const dynamicArea = document.getElementById("dynamicArea");
+    const newestArtistsContainer = document.createElement("div");
+    newestArtistsContainer.id = "newestArtistsContainer";
+    dynamicArea.appendChild(newestArtistsContainer);
+
+    newestArtists.forEach((artist) => {
+      const artistId = artist.artist.toLowerCase().replace(/\s/g, "");
+      const artistDiv = document.createElement("div");
+      artistDiv.setAttribute("data-transition", "loaders");
+      artistDiv.className = "newest-artist";
+      artistDiv.innerHTML = `<h3>${artist.artist}</h3><div class="artist-albums" id="albums-${artistId}"></div>`;
+      newestArtistsContainer.appendChild(artistDiv);
+
+      const artistAlbumsDiv = document.getElementById(`albums-${artistId}`);
+      artist.albums.forEach((album) => {
+        const albumId = album.album.toLowerCase().replace(/\s/g, "");
+        const albumDiv = document.createElement("div");
+        albumDiv.className = "album-cover";
+        albumDiv.setAttribute("data-album", album.album);
+        albumDiv.innerHTML = `<img src="https://mybeats.cloud/mediaFiles/albumCovers/${albumId}.png" alt="${album.album}"><h5>${album.album}</h5>`;
+
+        albumDiv.addEventListener("click", () => {
+          setTimeout(() => {
+            clearDynamicArea();
+            loadArtistInfo(artist.artist);
+            const songList = document.createElement("div");
+            songList.id = "song-list";
+            dynamicArea.appendChild(songList);
+            loadAlbumSongs(album.album, albumDiv);
+            artistNameTitle.style.display = "block";
+            artistNameTitle.classList.add("focusInContract");
+            
+            // Modified this part to update the active button
+            setTimeout(() => {
+              const albumButton = document.querySelector(`button[data-album="${album.album}"]`);
+              if (albumButton) {
+                updateActiveButton(albumButton);
+              }
+            }, 2000); // Increased timeout to ensure buttons are rendered
+          }, 1500);
+        });
+
+        artistAlbumsDiv.appendChild(albumDiv);
+      });
+    });
+  }, 1000);
+}
 export function loadAllArtists() {
   setPage({ "data-page": "all", "data-artist": null });
   artistNameTitle.style.display = "none";
@@ -590,59 +658,225 @@ export function loadArtistInfo(artistName) {
 
   setActiveLink("artistDiscography");
 }
-
-export function discoverMusic() {
-  setPage({ "data-page": "home" });
-  artistNameTitle.style.display = "none";
-  const newestArtists = musicLibrary.slice(0, 5);
+export function loadAlbumSongs(albumName, button) {
+  const songListContainer = document.getElementById("song-list");
+  const currentSongs = songListContainer.querySelectorAll(".song");
+  currentSongs.forEach((song) => song.classList.remove("visible"));
+  populateCollectionDropdown();
 
   setTimeout(() => {
-    const dynamicArea = document.getElementById("dynamicArea");
-    const newestArtistsContainer = document.createElement("div");
-    newestArtistsContainer.id = "newestArtistsContainer";
-    dynamicArea.appendChild(newestArtistsContainer);
+    songListContainer.innerHTML = "";
+    const artist = musicLibrary.find((artist) => artist.albums.some((album) => album.album === albumName));
+    if (!artist) return;
 
-    newestArtists.forEach((artist) => {
-      const artistId = artist.artist.toLowerCase().replace(/\s/g, "");
-      const artistDiv = document.createElement("div");
-      artistDiv.setAttribute("data-transition", "loaders");
-      artistDiv.className = "newest-artist";
-      artistDiv.innerHTML = `<h3>${artist.artist}</h3><div class="artist-albums" id="albums-${artistId}"></div>`;
-      newestArtistsContainer.appendChild(artistDiv);
+    const album = artist.albums.find((album) => album.album === albumName);
+    if (!album) return;
 
-      const artistAlbumsDiv = document.getElementById(`albums-${artistId}`);
-      artist.albums.forEach((album) => {
-        const albumId = album.album.toLowerCase().replace(/\s/g, "");
-        const albumDiv = document.createElement("div");
-        albumDiv.className = "album-cover";
-        albumDiv.setAttribute("data-album", album.album);
-        albumDiv.innerHTML = `<img src="https://mybeats.cloud/mediaFiles/albumCovers/${albumId}.png" alt="${album.album}"><h5>${album.album}</h5>`;
+    currentAlbumSongs = album.songs.map((song) => ({ ...song, artist: artist.artist, album: album.album }));
 
-        albumDiv.addEventListener("click", () => {
-          setTimeout(() => {
-            clearDynamicArea();
-            loadArtistInfo(artist.artist);
-            const songList = document.createElement("div");
-            songList.id = "song-list";
-            dynamicArea.appendChild(songList);
-            loadAlbumSongs(album.album, albumDiv);
-            artistNameTitle.style.display = "block";
-            artistNameTitle.classList.add("focusInContract");
-            
-            // Modified this part to update the active button
-            setTimeout(() => {
-              const albumButton = document.querySelector(`button[data-album="${album.album}"]`);
-              if (albumButton) {
-                updateActiveButton(albumButton);
-              }
-            }, 2000); // Increased timeout to ensure buttons are rendered
-          }, 1500);
-        });
-
-        artistAlbumsDiv.appendChild(albumDiv);
-      });
+    currentAlbumSongs.forEach((song, index) => {
+      const songElement = createElementsSONGS(song, index);
+      songListContainer.appendChild(songElement);
+      setTimeout(() => songElement.classList.add("visible"), 10);
     });
-  }, 1000);
+
+    if (activeButton) activeButton.classList.remove("active");
+    button.classList.add("active");
+    activeButton = button;
+
+    loadFavorites();
+    animateTrackItems();
+  }, 500);
+}
+export function createElementsSONGS(song, index) {
+  const songElement = document.createElement("div");
+  songElement.classList.add("song");
+  songElement.id = `song${song.id}`;
+  songElement.dataset.id = song.id;
+  songElement.dataset.title = song.title;
+  songElement.dataset.artist = song.artist;
+  songElement.dataset.album = song.album;
+  
+  songElement.setAttribute("data-song-id", song.id);
+  
+
+
+  songElement.innerHTML = `
+    <div class="songInner">
+      <div class="body">
+        <div class="songInfo heart" id="favourites"><i class="ph-fill ph-heart"></i></div>
+        <div class="songInfo duration">${song.duration || "3:35"}</div>
+        <div class="songInfo title"><h7 class="marquee">${song.title}</h7></div>
+        
+    <div class="icon-actions">
+    
+      <div
+         class="icon"
+         title="Add to Playlist"
+         data-action="addToPlaylist">
+         <i class="ph-fill ph-plus-circle"></i>
+      </div>
+      
+      <div
+         class="icon"
+         title="Play Next"
+         data-action="playNext">
+         <i class="ph-fill ph-check-circle"></i>
+       </div>
+      
+      <div
+         class="icon"
+         title="Download"
+         data-action="download">
+         <i class="material-symbols-outlined">download</i>
+       </div>
+      
+      <div
+         class="icon save-offline"
+         data-song-id="${song.id}"
+         data-title="${song.title}"
+         data-url="${song.downloadPath}"
+         title="Offline"
+         data-action="saveOffline">
+        <i class="material-symbols-outlined">download_for_offline</i>
+      </div>
+      
+    </div>
+    
+    
+ </div>
+
+
+  <div class="moreMenu">
+    <button id="songsMoreMenuBTN${song.id}" class="songsMoreMenuBTN" type="button"><i class="ph-fill ph-dots-three-outline"></i></button>
+  </div>
+</div>
+  `;
+
+  // Add event listeners for the song element
+  addSongElementEventListeners(songElement, song, index);
+
+  return songElement;
+}
+function addSongElementEventListeners(songElement, song, index) {
+  const moreMenuBTN = songElement.querySelector(".songsMoreMenuBTN");
+  const iconActions = songElement.querySelector(".icon-actions");
+
+  // Handle the "More Menu" button click
+  moreMenuBTN.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isVisible = iconActions.classList.contains("visible");
+    closeAllMenus();
+    if (!isVisible) iconActions.classList.add("visible");
+    else iconActions.classList.remove("visible");
+  });
+
+  // Handle the "Add to Playlist" button click
+  const addToPlaylistIcon = songElement.querySelector(`[data-action="addToPlaylist"]`);
+  addToPlaylistIcon.addEventListener("click", (event) => {
+    event.preventDefault();
+    popOverPLAY(addToPlaylistIcon, song);
+  });
+
+  // Handle the "Play Next" button click
+  const addToQueueIcon = songElement.querySelector(`[data-action="playNext"]`);
+  addToQueueIcon.addEventListener("click", (event) => {
+    event.preventDefault();
+    addToQueue(song);
+  });
+
+  // Handle the "Download" button click
+  const downloadIcon = songElement.querySelector(`[data-action="download"]`);
+  downloadIcon.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Create the download popover
+    const popover = document.createElement("div");
+    popover.className = "download-popover";
+    popover.innerHTML = `
+      <div id="downloadLoading" class="loading">
+        <div class="spinner"></div>
+        <p>Finding File...</p>
+      </div>
+      <div id="downloadConfirmation" class="confirmation">
+        <p>Are you sure you want to download this file?</p>
+        <button id="confirmDownload">Yes</button>
+        <button id="cancelDownload">No</button>
+      </div>
+    `;
+
+    // Append the popover to the body
+    document.body.appendChild(popover);
+
+    // Show the loading state
+    const loading = popover.querySelector("#downloadLoading");
+    const confirmation = popover.querySelector("#downloadConfirmation");
+    loading.style.display = "block";
+    confirmation.style.display = "none";
+
+    // Simulate a loading delay (e.g., 2 seconds)
+    setTimeout(() => {
+      loading.style.display = "none";
+      confirmation.style.display = "block";
+
+      // Handle the "Yes" button click
+      const confirmButton = popover.querySelector("#confirmDownload");
+      confirmButton.addEventListener("click", () => {
+        // Trigger the download
+        const link = document.createElement("a");
+        link.href = song.downloadPath;
+        link.download = `${song.title}.mp3`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Remove the popover
+        popover.remove();
+      });
+
+      // Handle the "No" button click
+      const cancelButton = popover.querySelector("#cancelDownload");
+      cancelButton.addEventListener("click", () => {
+        // Remove the popover
+        popover.remove();
+      });
+    }, 2000); // Adjust the delay as needed
+  });
+
+  // Handle the "Save Offline" button click
+  const saveOfflineIcon = songElement.querySelector(`[data-action="saveOffline"]`);
+  saveOfflineIcon.addEventListener("click", (event) => {
+    event.preventDefault();
+
+    // Create a song object
+    const songData = {
+      id: song.id,
+      title: song.title,
+      url: song.downloadPath
+    };
+
+    // Retrieve existing offline songs from localStorage
+    const offlineSongs = JSON.parse(localStorage.getItem("offlineSongs") || "[]");
+
+    // Check if the song is already saved
+    const isAlreadySaved = offlineSongs.some((savedSong) => savedSong.id === song.id);
+
+    if (!isAlreadySaved) {
+      // Add the new song to the list
+      offlineSongs.push(songData);
+      localStorage.setItem("offlineSongs", JSON.stringify(offlineSongs));
+      alert("Song saved for offline playback!");
+    } else {
+      alert("This song is already saved for offline playback.");
+    }
+  });
+
+  // Handle double-click to play the song
+  songElement.addEventListener("dblclick", () => {
+    currentSongIndex = index;
+    playSong(currentAlbumSongs[currentSongIndex]);
+  });
 }
 export function updateActiveButton(button) {
   if (activeButton) activeButton.classList.remove("active");
@@ -652,7 +886,6 @@ export function updateActiveButton(button) {
 export function closeAllMenus() {
   document.querySelectorAll(".icon-actions").forEach((menu) => menu.classList.remove("visible"));
 }
-
 export function popOverPLAY(button, song) {
   const popoverContent = document.createElement("div");
   popoverContent.classList.add("popover-content");
@@ -703,8 +936,10 @@ export function popOverPLAY(button, song) {
 }
 
 
-/////////  R O U T I N G  Functions  ////////////////
-/////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+/////////  R O U T I N G  Functions  /////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 export function siteRouter() {
   siteMap(window.location.pathname, window.location.search);
   siteMapLinks();
@@ -918,21 +1153,13 @@ export function fetchFromURL(query) {
   }
   return null; // Return null if no Artist exists
 }
-document.addEventListener("DOMContentLoaded", () => {
-  siteRouter();
-  initializeFavorites();
-  initializePopovers();
-  loadPlaylist();
-  loadQueueFromLocalStorage();
-  updateQueueDisplay();
-  attachAddToQueueListeners();
-});
 
 
 
 
-///////  Similar Artists  ////////////
-///////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+/////////  Similar Artists  //////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 export function getSimilarArtists(artistName) {
   const artist = musicLibrary.find((artist) => artist.artist === artistName);
 
@@ -1081,7 +1308,7 @@ export function loadPlayingArtistSimilar(artistName) {
     arrowRight.disabled = scrollAbleInside.scrollLeft + scrollAbleInside.clientWidth >= scrollAbleInside.scrollWidth;
   });
 }
-function initializePopovers() {
+export function initializePopovers() {
   const popoverTriggers = document.querySelectorAll('[data-popover-target]');
 
   popoverTriggers.forEach(trigger => {
@@ -1172,8 +1399,10 @@ function initializePopovers() {
 
 
 
-///////  Favorites  ////////////
-///////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+/////////  F A V O R I T E S   ///////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 //let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
 export function isRendering(songData, type) {
   ///////////  If Lists are empty  /////////////////////////
@@ -1421,189 +1650,14 @@ export function initializeFavorites() {
   });
 }
 
-///////  Up Next / Favorites Features  ///////
 
+
+
+//////////////////////////////////////////////////////////////////////////
+/////////  U P  N E X T  Q U E U E  //////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 let queue = [];
-
-export function loadAlbumSongs(albumName, button) {
-  const songListContainer = document.getElementById("song-list");
-  const currentSongs = songListContainer.querySelectorAll(".song");
-  currentSongs.forEach((song) => song.classList.remove("visible"));
-  populateCollectionDropdown();
-
-  setTimeout(() => {
-    songListContainer.innerHTML = "";
-    const artist = musicLibrary.find((artist) => artist.albums.some((album) => album.album === albumName));
-    if (!artist) return;
-
-    const album = artist.albums.find((album) => album.album === albumName);
-    if (!album) return;
-
-    currentAlbumSongs = album.songs.map((song) => ({ ...song, artist: artist.artist, album: album.album }));
-
-    currentAlbumSongs.forEach((song, index) => {
-      const songElement = createElementsSONGS(song, index);
-      songListContainer.appendChild(songElement);
-      setTimeout(() => songElement.classList.add("visible"), 10);
-    });
-
-    if (activeButton) activeButton.classList.remove("active");
-    button.classList.add("active");
-    activeButton = button;
-
-    loadFavorites();
-    animateTrackItems();
-  }, 500);
-}
-export function createElementsSONGS(song, index) {
-  const songElement = document.createElement("div");
-  songElement.classList.add("song");
-  songElement.id = `song${song.id}`;
-  songElement.dataset.id = song.id;
-  songElement.dataset.title = song.title;
-  songElement.dataset.artist = song.artist;
-  songElement.dataset.album = song.album;
-
-  songElement.innerHTML = `
-    <div class="songInner">
-      <div class="body">
-        <div class="songInfo heart" id="favourites"><i class="ph-fill ph-heart"></i></div>
-        <div class="songInfo duration">${song.duration || "3:35"}</div>
-        <div class="songInfo title"><h7 class="marquee">${song.title}</h7></div>
-        <div class="icon-actions">
-          <div class="icon" title="Add to Playlist" data-action="addToPlaylist"><i class="ph-fill ph-plus-circle"></i></div>
-          <div class="icon" title="Play Next" data-action="playNext"><i class="ph-fill ph-check-circle"></i></div>
-          <div class="icon" title="Download" data-action="download"><i class="material-symbols-outlined">download_for_offline</i></div>
-          <div class="icon" title="Share" data-action="share"><i class="material-symbols-outlined">share</i></div>
-        </div>
-      </div>
-      <div class="moreMenu">
-        <button id="songsMoreMenuBTN${song.id}" class="songsMoreMenuBTN" type="button"><i class="ph-fill ph-dots-three-outline"></i></button>
-      </div>
-    </div>
-  `;
-
-  addSongElementEventListeners(songElement, song, index);
-  return songElement;
-}
-function addSongElementEventListeners(songElement, song, index) {
-  const moreMenuBTN = songElement.querySelector(".songsMoreMenuBTN");
-  const iconActions = songElement.querySelector(".icon-actions");
-
-  moreMenuBTN.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const isVisible = iconActions.classList.contains("visible");
-    closeAllMenus();
-    if (!isVisible) iconActions.classList.add("visible");
-    else iconActions.classList.remove("visible");
-  });
-
-  const addToPlaylistIcon = songElement.querySelector(`[data-action="addToPlaylist"]`);
-  addToPlaylistIcon.addEventListener("click", (event) => {
-    event.preventDefault();
-    popOverPLAY(addToPlaylistIcon, song);
-  });
-
-  const addToQueueIcon = songElement.querySelector(`[data-action="playNext"]`);
-  addToQueueIcon.addEventListener("click", (event) => {
-    event.preventDefault();
-    addToQueue(song);
-  });
-
-  songElement.addEventListener("dblclick", () => {
-    currentSongIndex = index;
-    playSong(currentAlbumSongs[currentSongIndex]);
-  });
-}
-export function playSong(song) {
-  if (!song) {
-    console.error("No song provided to play.");
-    return;
-  }
-
-  songPlaying = song.title;
-  artistPlaying = song.artist;
-  albumPlaying = song.album;
-  
-  loadPlayingArtistSimilar();
-
-  document.querySelectorAll(".song").forEach((songElem) => songElem.classList.remove("active"));
-  const currentSongElement = document.querySelector(`#song${song.id}`);
-  if (currentSongElement) {
-    currentSongElement.classList.add("active");
-  }
-
-  audioElement.src = song.downloadPath;
-  audioElement.play();
-
-  document.querySelectorAll(".updateSongTitle").forEach((titleElement) => {
-    titleElement.textContent = songPlaying;
-  });
-  document.querySelectorAll(".updateArtistName").forEach((artistElement) => {
-    artistElement.textContent = artistPlaying;
-  });
-  document.querySelectorAll(".updateAlbumName").forEach((albumElement) => {
-    albumElement.textContent = albumPlaying;
-  });
-
-  const albumArtPhoto = document.getElementById("nowPlayingArt");
-  const albumArtPhotoNAV = document.getElementById("smallAlbumCover");
-  const albumNowPlaying = albumPlaying.toLowerCase().replace(/\s/g, "");
-  const newAlbumCoverUrl = `https://mybeats.cloud/mediaFiles/albumCovers/${albumNowPlaying}.png`;
-
-  if (albumArtPhoto) {
-    albumArtPhoto.src = newAlbumCoverUrl;
-    albumArtPhoto.alt = albumPlaying;
-  }
-  if (albumArtPhotoNAV) {
-    albumArtPhotoNAV.src = newAlbumCoverUrl;
-    albumArtPhotoNAV.alt = albumPlaying;
-  }
-
-  const artistName = artistPlaying.replace(/\s/g, "").toLowerCase();
-  const artworkUrl = `https://mybeats.cloud/mediaFiles/artistPortraits/${artistName}.png`;
-  updateMediaSession(song, artworkUrl);
-
-  const downloadIcon = document.getElementById("download-icon");
-  downloadIcon.href = song.downloadPath;
-  downloadIcon.setAttribute("download", song.title);
-
-  audioElement.addEventListener("ended", () => {
-    isPlaying = false;
-    if (currentSongElement) currentSongElement.classList.remove("active");
-    songCardUpdate();
-    songEnd();
-  });
-
-  audioElement.addEventListener("play", () => {
-    isPlaying = true;
-    songCardUpdate();
-  });
-
-}
-export function songEnd() {
-  if (repeatMode === 'one') {
-    playSong(currentAlbumSongs[currentSongIndex]);
-  } else if (queue.length > 0) {
-    playNextSong();
-  } else if (shuffleMode) {
-    currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
-    playSong(currentAlbumSongs[currentSongIndex]);
-  } else {
-    currentSongIndex = (currentSongIndex + 1) % currentAlbumSongs.length;
-    if (currentSongIndex === 0 && repeatMode !== 'all') {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-    } else {
-      playSong(currentAlbumSongs[currentSongIndex]);
-    }
-  }
-}
-
-
-
-
-function addToQueue(song) {
+export function addToQueue(song) {
   const queueList = document.getElementById("myQueue");
   const newItem = createQueueItemElement(song);
   queueList.appendChild(newItem);
@@ -1636,7 +1690,7 @@ export function playNextSong() {
     }
   }
 }
-function addQueueSongEventListeners() {
+export function addQueueSongEventListeners() {
   const queueList = document.getElementById("myQueue");
   queueList.addEventListener("dblclick", (event) => {
     const songElement = event.target.closest(".queue-item");
@@ -1653,23 +1707,14 @@ function addQueueSongEventListeners() {
     }
   });
 }
-document.addEventListener("DOMContentLoaded", () => {
-  addQueueSongEventListeners();
-});
-
-
-
-document.addEventListener("DOMContentLoaded", () => {
-  initQueueManager();
-});
-function initQueueManager() {
+export function initQueueManager() {
   const queueList = document.getElementById("myQueue");
   const clearQueueBtn = document.querySelector(".clear-queue-btn");
 
   initQueueEventListeners(queueList, clearQueueBtn);
   loadQueue(queueList);
 }
-function initQueueEventListeners(queueList, clearQueueBtn) {
+export function initQueueEventListeners(queueList, clearQueueBtn) {
   // Drag and Drop Functionality
   queueList.addEventListener("dragstart", handleDragStart);
   queueList.addEventListener("dragover", handleDragOver);
@@ -1682,7 +1727,7 @@ function initQueueEventListeners(queueList, clearQueueBtn) {
   // Clear Queue
   clearQueueBtn.addEventListener("click", () => clearQueue(queueList));
 }
-function handleRemoveSong(e) {
+export function handleRemoveSong(e) {
   if (e.target.classList.contains("icon-remove")) {
     const songItem = e.target.closest(".queue-item");
     songItem.remove();
@@ -1690,12 +1735,12 @@ function handleRemoveSong(e) {
     updateQueueCount(queueList);
   }
 }
-function clearQueue(queueList) {
+export function clearQueue(queueList) {
   queueList.innerHTML = "";
   saveQueue(queueList);
   updateQueueCount(queueList);
 }
-function saveQueue(queueList) {
+export function saveQueue(queueList) {
   const queueItems = Array.from(queueList.children).map((item) => ({
     id: item.dataset.songId,
     title: item.querySelector(".song-title").textContent,
@@ -1707,7 +1752,7 @@ function saveQueue(queueList) {
 
   localStorage.setItem("musicQueue", JSON.stringify(queueItems));
 }
-function loadQueue(queueList) {
+export function loadQueue(queueList) {
   const savedQueue = JSON.parse(localStorage.getItem("musicQueue") || "[]");
 
   savedQueue.forEach((song) => {
@@ -1717,7 +1762,7 @@ function loadQueue(queueList) {
 
   updateQueueCount(queueList);
 }
-function createQueueItemElement(song) {
+export function createQueueItemElement(song) {
   // Create queue item dynamically based on saved data
   const li = document.createElement("li");
   li.classList.add("queue-item");
@@ -1744,19 +1789,17 @@ function createQueueItemElement(song) {
 
   return li;
 }
-function updateQueueCount(queueList) {
+export function updateQueueCount(queueList) {
   const queueCountElement = document.querySelector(".queue-count");
   const currentCount = queueList.children.length;
   queueCountElement.textContent = `(${currentCount} songs)`;
 }
-
-
-function handleDragStart(e) {
+export function handleDragStart(e) {
   e.dataTransfer.effectAllowed = "move";
   e.dataTransfer.setData("text/html", e.target.outerHTML);
   e.target.classList.add("dragging");
 }
-function handleDragOver(e) {
+export function handleDragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = "move";
   const dragging = document.querySelector(".dragging");
@@ -1765,7 +1808,7 @@ function handleDragOver(e) {
     queueList.insertBefore(dragging, target.nextSibling || target);
   }
 }
-function handleDrop(e) {
+export function handleDragOver(e) {
   e.preventDefault();
   const data = e.dataTransfer.getData("text/html");
   const element = document.createElement("div");
@@ -1774,28 +1817,26 @@ function handleDrop(e) {
   queueList.insertBefore(droppedItem, e.target.closest(".queue-item").nextSibling);
   handleDragEnd();
 }
-function handleDragEnd() {
+export function handleDragEnd() {
   document.querySelector(".dragging").classList.remove("dragging");
   saveQueue(queueList);
 }
-//////////////////////////////   E N D   //////////////////////////////////
 
 
 
 
-/////////  P L A Y L I S T S  Feature  ////////////////
-/////////////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////////////////////
+/////////   P L A Y L I S T S  ///////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 let collections = {};
 let tags = [];
-
 
 const addTag = document.getElementById("addTagBtn");
 const editPlaylist = document.querySelector("#playlistEditModal .form-submit-btn");
 const uploadPhoto = document.querySelector("#creatorModal .drop-container");
 const createButton = document.querySelector("#creatorModal .form-submit-btn");
 const closeMe = document.querySelectorAll(".close");
-
 
 export function thumbNails(file, callback) {
   const reader = new FileReader();
@@ -2173,6 +2214,67 @@ document.querySelectorAll(".modalWrapper").forEach((modal) => {
 
 
 
+
+
+
+//////////////////////////////////////////////////////////////////////////
+/////////  S E R V I C E  W O R K E R  ///////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+document.addEventListener("DOMContentLoaded", () => {
+  if ("launchQueue" in window && "files" in LaunchParams.prototype) {
+    launchQueue.setConsumer(async (launchParams) => {
+      const fileHandles = launchParams.files;
+      if (!fileHandles.length) return;
+
+      const fileHandle = fileHandles[0];
+      const file = await fileHandle.getFile();
+
+      clearDynamicArea();
+      loadAudioPlayer(file);
+    });
+  }
+});
+export function loadAudioPlayer(file) {
+  const dynamicArea = document.getElementById("dynamicArea");
+
+  const content = `
+  <div class="music-container">
+  <h2>Play Your Offline Music or Discover New Music Here</h2>
+  </div>
+  <style>
+  .music-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  background: #f0f0f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  }
+  h2 {
+  font-family: 'Arial', sans-serif;
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 15px;
+  }
+  audio {
+  width: 80%;
+  max-width: 500px;
+  }
+  </style>
+  `;
+
+  dynamicArea.innerHTML = content;
+
+  const audioElement = document.querySelector("#audio");
+  audioElement.src = URL.createObjectURL(file);
+  audioElement.play().catch((err) => console.error("Audio playback error:",
+    err));
+}
+
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./serviceWorker.js')
@@ -2193,7 +2295,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-function playAudioFile(fileArrayBuffer, fileName) {
+export function playAudioFile(fileArrayBuffer, fileName) {
   const blob = new Blob([fileArrayBuffer], { type: 'audio/mp3' });
   const url = URL.createObjectURL(blob);
 
@@ -2203,3 +2305,17 @@ function playAudioFile(fileArrayBuffer, fileName) {
 
   console.log(`Playing: ${fileName}`);
 }
+navigator.serviceWorker.addEventListener('message', (event) => {
+  if (event.data.type === 'OPEN_FILE') {
+    const fileUrl = event.data.url;
+    const fileName = event.data.name;
+
+    // Use the file URL in your music player
+    const audioPlayer = document.getElementById('audio');
+    audioPlayer.src = fileUrl;
+    audioPlayer.play();
+
+    // Optionally, display the file name
+ //   document.getElementById('file-name').textContent = `Now Playing: ${fileName}`;
+  }
+});
