@@ -1808,15 +1808,6 @@ export function handleDragOver(e) {
     queueList.insertBefore(dragging, target.nextSibling || target);
   }
 }
-export function handleDragOver(e) {
-  e.preventDefault();
-  const data = e.dataTransfer.getData("text/html");
-  const element = document.createElement("div");
-  element.innerHTML = data;
-  const droppedItem = element.firstElementChild;
-  queueList.insertBefore(droppedItem, e.target.closest(".queue-item").nextSibling);
-  handleDragEnd();
-}
 export function handleDragEnd() {
   document.querySelector(".dragging").classList.remove("dragging");
   saveQueue(queueList);
