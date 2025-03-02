@@ -1,11 +1,12 @@
-import {
-  musicLibrary
-} from "./mediaFiles/songs/musicData.js";
+import { musicLibrary } from "./mediaFiles/songs/musicData.js";
+
+import $ from "https://esm.sh/jquery";
+import "https://esm.sh/jquery-ui"; // This includes Sortable
 
 let currentSongIndex = 0;
 let currentAlbumSongs = [];
 let shuffleMode = false;
-let repeatMode = 'off';
+let repeatMode = "off";
 let activeButton = null;
 let isPlaying = false;
 let isDragging = false;
@@ -36,27 +37,26 @@ const similarArtistsPLAYING = document.getElementById("similarArtistsPLAYING");
 const navItems = document.querySelectorAll(".cc_sticky-nav-item");
 
 document.addEventListener("DOMContentLoaded", () => {
+ document.body.appendChild(progressBar);
+  progressBar.id = "loadingBar";
+  
+  randomizeMe(musicLibrary);
   siteRouter();
+  initQueueManager();
   initializeFavorites();
   initializePopovers();
   loadPlaylist();
-  initQueueManager();
-  addQueueSongEventListeners();
-
-  document.body.appendChild(progressBar); 
-  progressBar.id = "loadingBar";
-
-  randomizeMe(musicLibrary);
 });
+
 
 
 /////////  H E L P E R  Functions  ////////////////
 /////////////////////////////////////////////////////////////////
-export function clearDynamicArea() {
+function clearDynamicArea() {
   dynamicArea.innerHTML = "";
   dynamicAreaBottom.innerHTML = "";
 }
-export function activeAlbum(button) {
+function activeAlbum(button) {
   if (activeButton) {
     activeButton.classList.remove("active");
   }
@@ -65,15 +65,13 @@ export function activeAlbum(button) {
     activeButton = button;
   }
 }
-export function randomizeMe(array) {
+function randomizeMe(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i],
-      array[j]] = [array[j],
-      array[i]];
+    [array[i], array[j]] = [array[j], array[i]];
   }
 }
-export function similarArtistsLarge(artistId) {
+function similarArtistsLarge(artistId) {
   const artist = musicLibrary.find((artist) => artist.id === artistId);
 
   if (artist) {
@@ -83,7 +81,7 @@ export function similarArtistsLarge(artistId) {
   }
   return [];
 }
-export function setActiveLink(linkId) {
+function setActiveLink(linkId) {
   navItems.forEach((item) => item.classList.remove("active"));
 
   const activeItem = document.getElementById(linkId)?.parentElement;
@@ -91,19 +89,17 @@ export function setActiveLink(linkId) {
     activeItem.classList.add("active");
   }
 }
-export function scrollToTop() {
+function scrollToTop() {
   window.scrollTo({
     top: 0,
     behavior: "smooth",
   });
 }
-export function triggerRepaint(element) {
+function triggerRepaint(element) {
   element.offsetHeight;
 }
-export function hideContainersSmoothly() {
-  const containers = ["all-artists-container",
-    "similar-artists-container",
-    "artist-info-container"];
+function hideContainersSmoothly() {
+  const containers = ["all-artists-container", "similar-artists-container", "artist-info-container"];
 
   containers.forEach((containerId) => {
     const container = document.getElementById(containerId);
@@ -118,7 +114,7 @@ export function hideContainersSmoothly() {
     }
   });
 }
-export function animateTrackItems() {
+function animateTrackItems() {
   const trackItems = document.querySelectorAll(".trackItem");
   trackItems.forEach((item, index) => {
     setTimeout(() => {
@@ -126,15 +122,16 @@ export function animateTrackItems() {
     }, index * 100); // Stagger the animation for each item
   });
 }
-export function populateCollectionDropdown() {
+function populateCollectionDropdown() {
   const dropdowns = document.querySelectorAll(".selectCollection");
   dropdowns.forEach((dropdown) => {
-    dropdown.innerHTML = `<option value="" disabled selected>Add to Playlist</option>`;
+    dropdown.innerHTML = `<option value="" disabled selected>Add to Playlist</option>`; // Default option
 
-    Object.values(collections).forEach((collection) => {
+    // Add each playlist as an option in the dropdown
+    playlists.forEach((playlist) => {
       const option = document.createElement("option");
-      option.value = collection.id;
-      option.textContent = collection.title;
+      option.value = playlist.id;
+      option.textContent = playlist.title;
       dropdown.appendChild(option);
     });
   });
@@ -142,83 +139,76 @@ export function populateCollectionDropdown() {
 
 
 
-//////////////////////////////////////////////////////////////////////////
-/////////  M U S I C  P L A Y E R  ///////////////////////////////////////
-//////// Android Media Session API ///////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/////////  M U S I C  P L A Y E R  //////////////////////////////
+//////// Android Media Session API //////////////////////////////
 let songPlaying = null;
 let artistPlaying = null;
 let albumPlaying = null;
 
 /////// Actions / Events ///////
 ///////////////////////////////////////
-export function playSong(song) {
+function playSong(song) {
   if (!song) {
     console.error("No song provided to play.");
     return;
   }
 
-  songPlaying = song.title;
-  artistPlaying = song.artist;
-  albumPlaying = song.album;
-  
+  let songPlaying = song.title;
+  let artistPlaying = song.artist;
+  let albumPlaying = song.album;
+
   loadPlayingArtistSimilar();
 
-  document.querySelectorAll(".song").forEach((songElem) => songElem.classList.remove("active"));
-  const currentSongElement = document.querySelector(`#song${song.id}`);
-  if (currentSongElement) {
-    currentSongElement.classList.add("active");
+  $(".song").removeClass("active");
+  let $currentSongElement = $(`#song${song.id}`);
+  if ($currentSongElement.length) {
+    $currentSongElement.addClass("active");
   }
 
   audioElement.src = song.downloadPath;
   audioElement.play();
 
-  document.querySelectorAll(".updateSongTitle").forEach((titleElement) => {
-    titleElement.textContent = songPlaying;
-  });
-  document.querySelectorAll(".updateArtistName").forEach((artistElement) => {
-    artistElement.textContent = artistPlaying;
-  });
-  document.querySelectorAll(".updateAlbumName").forEach((albumElement) => {
-    albumElement.textContent = albumPlaying;
-  });
+  $(".updateSongTitle").text(songPlaying);
+  $(".updateArtistName").text(artistPlaying);
+  $(".updateAlbumName").text(albumPlaying);
 
-  const albumArtPhoto = document.getElementById("nowPlayingArt");
-  const albumArtPhotoNAV = document.getElementById("smallAlbumCover");
-  const albumNowPlaying = albumPlaying.toLowerCase().replace(/\s/g, "");
-  const newAlbumCoverUrl = `https://mybeats.cloud/mediaFiles/albumCovers/${albumNowPlaying}.png`;
+  let albumArtPhoto = $("#nowPlayingArt");
+  let albumArtPhotoNAV = $("#smallAlbumCover");
+  let albumNowPlaying = albumPlaying.toLowerCase().replace(/\s/g, "");
+  let newAlbumCoverUrl = `https://mybeats.cloud/mediaFiles/albumCovers/${albumNowPlaying}.png`;
 
-  if (albumArtPhoto) {
-    albumArtPhoto.src = newAlbumCoverUrl;
-    albumArtPhoto.alt = albumPlaying;
+  if (albumArtPhoto.length) {
+    albumArtPhoto.attr("src", newAlbumCoverUrl);
+    albumArtPhoto.attr("alt", albumPlaying);
   }
-  if (albumArtPhotoNAV) {
-    albumArtPhotoNAV.src = newAlbumCoverUrl;
-    albumArtPhotoNAV.alt = albumPlaying;
+  if (albumArtPhotoNAV.length) {
+    albumArtPhotoNAV.attr("src", newAlbumCoverUrl);
+    albumArtPhotoNAV.attr("alt", albumPlaying);
   }
 
-  const artistName = artistPlaying.replace(/\s/g, "").toLowerCase();
-  const artworkUrl = `https://mybeats.cloud/mediaFiles/artistPortraits/${artistName}.png`;
+  let artistName = artistPlaying.replace(/\s/g, "").toLowerCase();
+  let artworkUrl = `https://mybeats.cloud/mediaFiles/artistPortraits/${artistName}.png`;
   updateMediaSession(song, artworkUrl);
 
-  const downloadIcon = document.getElementById("download-icon");
-  downloadIcon.href = song.downloadPath;
-  downloadIcon.setAttribute("download", song.title);
+  let $downloadIcon = $("#download-icon");
+  $downloadIcon.attr("href", song.downloadPath);
+  $downloadIcon.attr("download", song.title);
 
-  audioElement.addEventListener("ended", () => {
-    isPlaying = false;
-    if (currentSongElement) currentSongElement.classList.remove("active");
-    songCardUpdate();
-    songEnd();
-  });
-
+  audioElement.addEventListener("ended", handleSongEnd);
   audioElement.addEventListener("play", () => {
     isPlaying = true;
     songCardUpdate();
   });
-
 }
-export function songEnd() {
-  if (repeatMode === 'one') {
+function handleSongEnd() {
+  isPlaying = false;
+  $(".song.active").removeClass("active");
+  songCardUpdate();
+  songEnd();
+}
+function songEnd() {
+  if (repeatMode === "one") {
     playSong(currentAlbumSongs[currentSongIndex]);
   } else if (queue.length > 0) {
     playNextSong();
@@ -227,7 +217,7 @@ export function songEnd() {
     playSong(currentAlbumSongs[currentSongIndex]);
   } else {
     currentSongIndex = (currentSongIndex + 1) % currentAlbumSongs.length;
-    if (currentSongIndex === 0 && repeatMode !== 'all') {
+    if (currentSongIndex === 0 && repeatMode !== "all") {
       audioElement.pause();
       audioElement.currentTime = 0;
     } else {
@@ -235,7 +225,7 @@ export function songEnd() {
     }
   }
 }
-export function skipForward() {
+function skipForward() {
   if (shuffleMode) {
     currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
   } else {
@@ -243,12 +233,10 @@ export function skipForward() {
   }
   playSong(currentAlbumSongs[currentSongIndex]);
 }
-export function skipBackward() {
+function skipBackward() {
   if (audioElement.currentTime > 3) {
-    // If the current song has been playing for more than 3 seconds, restart it
     audioElement.currentTime = 0;
   } else {
-    // Otherwise, go to the previous song
     if (shuffleMode) {
       currentSongIndex = Math.floor(Math.random() * currentAlbumSongs.length);
     } else {
@@ -257,39 +245,35 @@ export function skipBackward() {
     playSong(currentAlbumSongs[currentSongIndex]);
   }
 }
-export function toggleShuffle() {
+function toggleShuffle() {
   shuffleMode = !shuffleMode;
-  shuffleButton.classList.toggle('active', shuffleMode);
+  $("#shuffleButton").toggleClass("active", shuffleMode);
 }
-export function toggleRepeat() {
+function toggleRepeat() {
   switch (repeatMode) {
-    case 'off':
-      repeatMode = 'one';
-      repeatButton.classList.add('ph-number-circle-one', 'active');
-      repeatButton.style.color = "#262626";
+    case "off":
+      repeatMode = "one";
+      $("#repeatButton").removeClass("ph-infinity").addClass("ph-number-circle-one active").css("color", "#262626");
       break;
-    case 'one':
-      repeatMode = 'all';
-      repeatButton.classList.remove('ph-repeat');
-      repeatButton.classList.add('ph-repeat-once', 'active');
-      repeatButton.style.color = "#262626";
+    case "one":
+      repeatMode = "all";
+      $("#repeatButton").removeClass("ph-number-circle-one").addClass("ph-repeat-once active").css("color", "#262626");
       break;
-    case 'all':
-      repeatMode = 'off';
-      repeatButton.classList.remove('ph-repeat-once', 'active');
-      repeatButton.classList.add('ph-infinity');
+    case "all":
+      repeatMode = "off";
+      $("#repeatButton").removeClass("ph-repeat-once active").addClass("ph-infinity");
       break;
   }
 }
-export function seek() {
+function seek() {
   const seekTime = (progressSlider.value / 100) * audioElement.duration;
   audioElement.currentTime = seekTime;
 }
-export function startDragging() {
+function startDragging() {
   isDragging = true;
   audioElement.removeEventListener("timeupdate", updateProgress);
 }
-export function stopDragging() {
+function stopDragging() {
   if (isDragging) {
     const newTime = (progressElapsed.offsetWidth / progressBarr.offsetWidth) * audioElement.duration;
     audioElement.currentTime = newTime; // Set audio time only when dragging stops
@@ -302,7 +286,7 @@ export function stopDragging() {
     isDragging = false;
   }
 }
-export function handleDragging(e) {
+function handleDragging(e) {
   if (isDragging) {
     updateSlider(e); // Update slider position visually only
   }
@@ -310,14 +294,14 @@ export function handleDragging(e) {
 
 /////// UI Changes ///////
 ///////////////////////////////////////
-export function updateTitle(song) {
+function updateTitle(song) {
   if (song && song.title && song.artist) {
     document.title = `${song.title} - ${song.artist}`;
   } else {
     document.title = "MyBeats Ã‚Â® Music Streaming";
   }
 }
-export function songCardUpdate() {
+function songCardUpdate() {
   const largeAlbumCover = document.getElementById("largeAlbumCover");
   const smallAlbumCover = document.getElementById("smallAlbumCover");
   const songCardTitle = document.getElementById("songCardTitle");
@@ -333,17 +317,18 @@ export function songCardUpdate() {
   songCardArtist.textContent = artistPlaying;
   songCardAlbum.textContent = albumPlaying;
 }
-export function updateMediaSession(song, artworkUrl) {
+function updateMediaSession(song, artworkUrl) {
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.title || "Unknown Title",
       artist: song.artist || "Unknown Artist",
       album: song.album || "Unknown Album",
-      artwork: [{
-        src: artworkUrl,
-        sizes: "512x512",
-        type: "image/png",
-      },
+      artwork: [
+        {
+          src: artworkUrl,
+          sizes: "512x512",
+          type: "image/png",
+        },
       ],
     });
 
@@ -389,26 +374,26 @@ export function updateMediaSession(song, artworkUrl) {
       }
       updateProgress();
     });
-    navigator.mediaSession.setActionHandler("repeatmode",
-      toggleRepeat);
-    navigator.mediaSession.setActionHandler("shufflemode",
-      toggleShuffle);
+    navigator.mediaSession.setActionHandler("repeatmode", toggleRepeat);
+    navigator.mediaSession.setActionHandler("shufflemode", toggleShuffle);
+    navigator.mediaSession.setActionHandler("togglefavorite", () => {
+      toggleFavorite(song);
+    });
   }
 }
-export function updateMediaSessionPlaybackState() {
-  navigator.mediaSession.playbackState = isPlaying ? "playing": "paused";
+function updateMediaSessionPlaybackState() {
+  navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
 }
-export function formatTime(seconds) {
+function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2,
-    "0")}`;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
-export function updateProgress() {
+function updateProgress() {
   if (!audioElement.duration) return; // Prevent NaN issues if no duration is set
 
   // Force real-time update for Android Media Session
-  const currentTime = !audioElement.paused ? audioElement.currentTime: audioElement.currentTime;
+  const currentTime = !audioElement.paused ? audioElement.currentTime : audioElement.currentTime;
   const duration = audioElement.duration;
 
   // Calculate progress percentage
@@ -431,7 +416,7 @@ export function updateProgress() {
     });
   }
 }
-export function updateSlider(e) {
+function updateSlider(e) {
   const rect = progressBarr.getBoundingClientRect();
   let offsetX = e.clientX - rect.left;
   offsetX = Math.max(0, Math.min(offsetX, rect.width));
@@ -450,7 +435,7 @@ export function updateSlider(e) {
 
   return currentTime;
 }
-export function togglePlayPauseIcons() {
+function togglePlayPauseIcons() {
   if (audioElement.paused) {
     btnPlay.style.display = "inline";
     btnPause.style.display = "none";
@@ -463,7 +448,8 @@ export function togglePlayPauseIcons() {
 
 audioElement.addEventListener("play", togglePlayPauseIcons);
 audioElement.addEventListener("pause", togglePlayPauseIcons);
-audioElement.addEventListener("loadedmetadata", () => { // Update the total time display when metadata is loaded
+audioElement.addEventListener("loadedmetadata", () => {
+  // Update the total time display when metadata is loaded
   totalTimeDisplay.textContent = formatTime(audioElement.duration);
 });
 audioElement.addEventListener("ended", () => {
@@ -488,18 +474,32 @@ playPauseButton.addEventListener("click", () => {
   }
   togglePlayPauseIcons();
 });
-skipForwardButton.addEventListener('click', skipForward);
-skipBackwardButton.addEventListener('click', skipBackward);
-shuffleButton.addEventListener('click', toggleShuffle);
-repeatButton.addEventListener('click', toggleRepeat);
+skipForwardButton.addEventListener("click", skipForward);
+skipBackwardButton.addEventListener("click", skipBackward);
+shuffleButton.addEventListener("click", toggleShuffle);
+repeatButton.addEventListener("click", toggleRepeat);
 
 
+///////////////////////////////////////////////////////////////
+/////////  P R I M A R Y  Functions  //////////////////////////
+///////////////////////////////////////////////////////////////
+function findSongById(songId) {
+  for (const artist of musicLibrary) {
+    for (const album of artist.albums) {
+      const song = album.songs.find((song) => song.id === songId);
+      if (song) {
+        return {
+          ...song,
+          artist: artist.artist,
+          album: album.album,
+        };
+      }
+    }
+  }
+  return null;
+}
 
-
-//////////////////////////////////////////////////////////////////////////
-/////////  P R I M A R Y  Functions  /////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-export function discoverMusic() {
+function discoverMusic() {
   setPage({ "data-page": "home" });
   artistNameTitle.style.display = "none";
   const newestArtists = musicLibrary.slice(0, 5);
@@ -536,7 +536,7 @@ export function discoverMusic() {
             loadAlbumSongs(album.album, albumDiv);
             artistNameTitle.style.display = "block";
             artistNameTitle.classList.add("focusInContract");
-            
+
             // Modified this part to update the active button
             setTimeout(() => {
               const albumButton = document.querySelector(`button[data-album="${album.album}"]`);
@@ -552,7 +552,7 @@ export function discoverMusic() {
     });
   }, 1000);
 }
-export function loadAllArtists() {
+function loadAllArtists() {
   setPage({ "data-page": "all", "data-artist": null });
   artistNameTitle.style.display = "none";
 
@@ -566,17 +566,23 @@ export function loadAllArtists() {
 
     musicLibrary.forEach((artist) => {
       const artistDiv = document.createElement("div");
-      artistDiv.className = "artistPage circlePhoto";
+      artistDiv.className = "artistPage";
       artistDiv.setAttribute("data-artist", artist.artist);
+      artistDiv.setAttribute("data-aos", "fade-up");
 
+      // Create the circular photo container
+      const circlePhotoContainer = document.createElement("div");
+      circlePhotoContainer.className = "circlePhoto";
+
+      // Create the image element
       const artistImage = document.createElement("img");
       artistImage.src = `https://mybeats.cloud/mediaFiles/artistPortraits/${artist.artist.toLowerCase().replace(/\s/g, "")}.png`;
       artistImage.alt = artist.artist;
-      artistImage.style.maxWidth = 'none';
-      artistImage.classList.add('.classFix');
-      artistImage.width = 100;
-      artistImage.height = 100;
 
+      // Append the image to the circular container
+      circlePhotoContainer.appendChild(artistImage);
+
+      // Create the artist link
       const artistLink = document.createElement("a");
       artistLink.href = "#";
       artistLink.setAttribute("data-transition", "loaders");
@@ -592,11 +598,14 @@ export function loadAllArtists() {
         artistNameTitle.style.display = "block";
       });
 
+      // Create the artist name heading
       const artistNameHeading = document.createElement("h4");
       artistNameHeading.innerText = artist.artist;
+      artistNameHeading.className = "artistItemName";
 
+      // Append elements to the artist div
       artistLink.appendChild(artistNameHeading);
-      artistDiv.appendChild(artistImage);
+      artistDiv.appendChild(circlePhotoContainer); // Append the circular container
       artistDiv.appendChild(artistLink);
       allArtistsContainer.appendChild(artistDiv);
     });
@@ -606,7 +615,7 @@ export function loadAllArtists() {
 
   setActiveLink("showAll");
 }
-export function loadArtistInfo(artistName) {
+function loadArtistInfo(artistName) {
   setPage({ "data-page": "artist", "data-artist": artistName });
   pushToURL(artistName);
   artistNameTitle.classList.remove("artistInfoContent", "focusInContract");
@@ -658,7 +667,7 @@ export function loadArtistInfo(artistName) {
 
   setActiveLink("artistDiscography");
 }
-export function loadAlbumSongs(albumName, button) {
+function loadAlbumSongs(albumName, button) {
   const songListContainer = document.getElementById("song-list");
   const currentSongs = songListContainer.querySelectorAll(".song");
   currentSongs.forEach((song) => song.classList.remove("visible"));
@@ -688,7 +697,8 @@ export function loadAlbumSongs(albumName, button) {
     animateTrackItems();
   }, 500);
 }
-export function createElementsSONGS(song, index) {
+
+function createElementsSONGS(song, index) {
   const songElement = document.createElement("div");
   songElement.classList.add("song");
   songElement.id = `song${song.id}`;
@@ -696,10 +706,7 @@ export function createElementsSONGS(song, index) {
   songElement.dataset.title = song.title;
   songElement.dataset.artist = song.artist;
   songElement.dataset.album = song.album;
-  
   songElement.setAttribute("data-song-id", song.id);
-  
-
 
   songElement.innerHTML = `
     <div class="songInner">
@@ -707,62 +714,26 @@ export function createElementsSONGS(song, index) {
         <div class="songInfo heart" id="favourites"><i class="ph-fill ph-heart"></i></div>
         <div class="songInfo duration">${song.duration || "3:35"}</div>
         <div class="songInfo title"><h7 class="marquee">${song.title}</h7></div>
-        
-    <div class="icon-actions">
-    
-      <div
-         class="icon"
-         title="Add to Playlist"
-         data-action="addToPlaylist">
-         <i class="ph-fill ph-plus-circle"></i>
+        <div class="icon-actions">
+          <div class="icon" title="Add to Playlist" data-action="addToPlaylist"><i class="ph-fill ph-plus-circle"></i></div>
+          <div class="icon" title="Play Next" data-action="playNext"><i class="ph-fill ph-check-circle"></i></div>
+          <div class="icon" title="Download" data-action="download"><i class="material-symbols-outlined">download</i></div>
+          <div class="icon save-offline" data-song-id="${song.id}" data-title="${song.title}" data-url="${song.downloadPath}" title="Offline" data-action="saveOffline"><i class="material-symbols-outlined">download_for_offline</i></div>
+        </div>
       </div>
-      
-      <div
-         class="icon"
-         title="Play Next"
-         data-action="playNext">
-         <i class="ph-fill ph-check-circle"></i>
-       </div>
-      
-      <div
-         class="icon"
-         title="Download"
-         data-action="download">
-         <i class="material-symbols-outlined">download</i>
-       </div>
-      
-      <div
-         class="icon save-offline"
-         data-song-id="${song.id}"
-         data-title="${song.title}"
-         data-url="${song.downloadPath}"
-         title="Offline"
-         data-action="saveOffline">
-        <i class="material-symbols-outlined">download_for_offline</i>
+      <div class="moreMenu">
+        <button id="songsMoreMenuBTN${song.id}" class="songsMoreMenuBTN" type="button"><i class="ph-fill ph-dots-three-outline"></i></button>
       </div>
-      
     </div>
-    
-    
- </div>
-
-
-  <div class="moreMenu">
-    <button id="songsMoreMenuBTN${song.id}" class="songsMoreMenuBTN" type="button"><i class="ph-fill ph-dots-three-outline"></i></button>
-  </div>
-</div>
   `;
 
-  // Add event listeners for the song element
   addSongElementEventListeners(songElement, song, index);
-
   return songElement;
 }
 function addSongElementEventListeners(songElement, song, index) {
   const moreMenuBTN = songElement.querySelector(".songsMoreMenuBTN");
   const iconActions = songElement.querySelector(".icon-actions");
 
-  // Handle the "More Menu" button click
   moreMenuBTN.addEventListener("click", (event) => {
     event.stopPropagation();
     const isVisible = iconActions.classList.contains("visible");
@@ -771,27 +742,23 @@ function addSongElementEventListeners(songElement, song, index) {
     else iconActions.classList.remove("visible");
   });
 
-  // Handle the "Add to Playlist" button click
   const addToPlaylistIcon = songElement.querySelector(`[data-action="addToPlaylist"]`);
   addToPlaylistIcon.addEventListener("click", (event) => {
     event.preventDefault();
     popOverPLAY(addToPlaylistIcon, song);
   });
 
-  // Handle the "Play Next" button click
   const addToQueueIcon = songElement.querySelector(`[data-action="playNext"]`);
   addToQueueIcon.addEventListener("click", (event) => {
     event.preventDefault();
     addToQueue(song);
   });
 
-  // Handle the "Download" button click
   const downloadIcon = songElement.querySelector(`[data-action="download"]`);
   downloadIcon.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    // Create the download popover
     const popover = document.createElement("div");
     popover.className = "download-popover";
     popover.innerHTML = `
@@ -805,65 +772,43 @@ function addSongElementEventListeners(songElement, song, index) {
         <button id="cancelDownload">No</button>
       </div>
     `;
-
-    // Append the popover to the body
     document.body.appendChild(popover);
 
-    // Show the loading state
     const loading = popover.querySelector("#downloadLoading");
     const confirmation = popover.querySelector("#downloadConfirmation");
     loading.style.display = "block";
     confirmation.style.display = "none";
 
-    // Simulate a loading delay (e.g., 2 seconds)
     setTimeout(() => {
       loading.style.display = "none";
       confirmation.style.display = "block";
 
-      // Handle the "Yes" button click
       const confirmButton = popover.querySelector("#confirmDownload");
       confirmButton.addEventListener("click", () => {
-        // Trigger the download
         const link = document.createElement("a");
         link.href = song.downloadPath;
         link.download = `${song.title}.mp3`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
-        // Remove the popover
         popover.remove();
       });
 
-      // Handle the "No" button click
       const cancelButton = popover.querySelector("#cancelDownload");
       cancelButton.addEventListener("click", () => {
-        // Remove the popover
         popover.remove();
       });
-    }, 2000); // Adjust the delay as needed
+    }, 2000);
   });
 
-  // Handle the "Save Offline" button click
   const saveOfflineIcon = songElement.querySelector(`[data-action="saveOffline"]`);
   saveOfflineIcon.addEventListener("click", (event) => {
     event.preventDefault();
-
-    // Create a song object
-    const songData = {
-      id: song.id,
-      title: song.title,
-      url: song.downloadPath
-    };
-
-    // Retrieve existing offline songs from localStorage
+    const songData = { id: song.id, title: song.title, url: song.downloadPath };
     const offlineSongs = JSON.parse(localStorage.getItem("offlineSongs") || "[]");
-
-    // Check if the song is already saved
     const isAlreadySaved = offlineSongs.some((savedSong) => savedSong.id === song.id);
 
     if (!isAlreadySaved) {
-      // Add the new song to the list
       offlineSongs.push(songData);
       localStorage.setItem("offlineSongs", JSON.stringify(offlineSongs));
       alert("Song saved for offline playback!");
@@ -872,21 +817,20 @@ function addSongElementEventListeners(songElement, song, index) {
     }
   });
 
-  // Handle double-click to play the song
   songElement.addEventListener("dblclick", () => {
     currentSongIndex = index;
     playSong(currentAlbumSongs[currentSongIndex]);
   });
 }
-export function updateActiveButton(button) {
+function updateActiveButton(button) {
   if (activeButton) activeButton.classList.remove("active");
   button.classList.add("active");
   activeButton = button;
 }
-export function closeAllMenus() {
+function closeAllMenus() {
   document.querySelectorAll(".icon-actions").forEach((menu) => menu.classList.remove("visible"));
 }
-export function popOverPLAY(button, song) {
+function popOverPLAY(button, song) {
   const popoverContent = document.createElement("div");
   popoverContent.classList.add("popover-content");
   popoverContent.innerHTML = `
@@ -894,12 +838,16 @@ export function popOverPLAY(button, song) {
       <h5>Add to Playlist</h5><br>
       <i class="material-symbols-outlined">playlist_add_circle</i>
       <div class="playlist-options">
-        ${Object.values(collections).map((playlist) => `
+        ${playlists
+          .map(
+            (playlist) => `
           <div class="radio-button">
             <input type="radio" id="radio${playlist.id}" name="radio-group" value="${playlist.id}">
             <label for="radio${playlist.id}">${playlist.title}</label>
           </div>
-        `).join("")}
+        `
+          )
+          .join("")}
       </div>
       <button id="confirmAddToPlaylist">Save</button>
     </div>
@@ -916,7 +864,7 @@ export function popOverPLAY(button, song) {
   popoverContent.querySelector("#confirmAddToPlaylist").addEventListener("click", () => {
     const selectedPlaylistId = popoverContent.querySelector("input[name='radio-group']:checked")?.value;
     if (selectedPlaylistId) {
-      playlistPopOver(selectedPlaylistId, song.title, song.artist);
+      addSongToPlaylist(selectedPlaylistId, song);
       alert(`Added ${song.title} to playlist!`);
     } else {
       alert("Please select a playlist.");
@@ -926,33 +874,37 @@ export function popOverPLAY(button, song) {
   });
 
   setTimeout(() => {
-    document.addEventListener("click", (e) => {
-      if (!popoverContent.contains(e.target) && e.target !== button) {
-        popoverContent.remove();
-        cleanup();
-      }
-    }, { once: true });
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (!popoverContent.contains(e.target) && e.target !== button) {
+          popoverContent.remove();
+          cleanup();
+        }
+      },
+      { once: true }
+    );
   }, 0);
 }
 
 
 
-//////////////////////////////////////////////////////////////////////////
-/////////  R O U T I N G  Functions  /////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-export function siteRouter() {
+///////////////////////////////////////////////////////////////
+/////////  R O U T I N G  Functions  //////////////////////////
+///////////////////////////////////////////////////////////////
+function siteRouter() {
   siteMap(window.location.pathname, window.location.search);
   siteMapLinks();
   window.addEventListener("popstate", (event) => {
-    siteMap(window.location.pathname,
-      window.location.search);
+    siteMap(window.location.pathname, window.location.search);
   });
 }
-export function siteMap(path, query) {
+function siteMap(path, query) {
   switch (path) {
     case "/discover":
       executeLoadingSequence();
       clearDynamicArea();
+      $("#playlistMGR").addClass("hidden");
       setActiveLink("goHome");
       scrollToTop();
       discoverMusic();
@@ -961,6 +913,7 @@ export function siteMap(path, query) {
     case "/allArtists":
       executeLoadingSequence();
       clearDynamicArea();
+      $("#playlistMGR").addClass("hidden");
       setActiveLink("showAll");
       scrollToTop();
       loadAllArtists();
@@ -971,7 +924,12 @@ export function siteMap(path, query) {
       clearDynamicArea();
       setActiveLink("myCollections");
       scrollToTop();
-      displayPlaylists();
+      setTimeout(() => {
+        $("#playlistMGR").removeClass("hidden");
+        $("#playlistMGR").fadeIn(500, () => {
+          renderPlaylistGallery();
+        });
+      }, 2000);
       break;
 
     case "/artists":
@@ -996,7 +954,7 @@ export function siteMap(path, query) {
       break;
   }
 }
-export function siteMapLinks() {
+function siteMapLinks() {
   const goHomeButton = document.getElementById("goHome");
   if (goHomeButton) {
     goHomeButton.addEventListener("click", (event) => {
@@ -1031,34 +989,32 @@ export function siteMapLinks() {
     }
   });
 }
-export function loadThis(path) {
-  window.history.pushState({},
-    "",
-    path);
-  siteMap(path,
-    window.location.search);
+function loadThis(path) {
+  window.history.pushState({}, "", path);
+  siteMap(path, window.location.search);
 }
-export function setPage(attrs) {
+function setPage(attrs) {
   Object.keys(attrs).forEach((key) => {
     document.body.setAttribute(key, attrs[key]);
   });
 }
+
+
 
 /////// L O A D I N G Animations ///////
 ///////////////////////////////////////
 $(document).on("click", "[data-transition='loaders']", function () {
   executeLoadingSequence();
 });
-export function executeLoadingSequence() {
+function executeLoadingSequence() {
   showLoadingOverlay();
   startLoading();
   setTimeout(() => {
     finishLoading();
     hideLoadingOverlay();
-  },
-    2000);
+  }, 2000);
 }
-export function resetProgressBar() {
+function resetProgressBar() {
   const progressBar = document.getElementById("loadingBar");
   if (progressBar) {
     progressBar.style.transition = "none";
@@ -1068,7 +1024,7 @@ export function resetProgressBar() {
     progressBar.style.transition = "";
   }
 }
-export function startLoading() {
+function startLoading() {
   const progressBar = document.getElementById("loadingBar");
   if (!progressBar) return;
 
@@ -1092,7 +1048,7 @@ export function startLoading() {
 
   animateLoading();
 }
-export function finishLoading() {
+function finishLoading() {
   const progressBar = document.getElementById("loadingBar");
   if (progressBar) {
     progressBar.style.transition = "width 0.75s ease-in-out, opacity 0.75s ease-in-out";
@@ -1105,25 +1061,27 @@ export function finishLoading() {
     setTimeout(resetProgressBar, 1500);
   }
 }
-export function showLoadingOverlay() {
+function showLoadingOverlay() {
   toggleLoadingOverlay(true);
 }
-export function hideLoadingOverlay() {
+function hideLoadingOverlay() {
   setTimeout(() => toggleLoadingOverlay(false), 1500);
 }
-export function toggleLoadingOverlay(visible) {
+function toggleLoadingOverlay(visible) {
   const loadingOverlay = document.getElementById("pageLoader");
   if (loadingOverlay) {
     loadingOverlay.classList.toggle("visible", visible);
   }
 }
 
+
+
 ///////// HELPER Functions /////////////
 ///////////////////////////////////////
-export function randomInt(min, max) {
+function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-export function createDynamicURL(query) {
+function createDynamicURL(query) {
   const params = {};
   if (query) {
     const queryString = query.substring(1);
@@ -1135,7 +1093,7 @@ export function createDynamicURL(query) {
   }
   return params;
 }
-export function pushToURL(artistName) {
+function pushToURL(artistName) {
   if (!artistName) return;
 
   // Replace spaces with periods
@@ -1144,7 +1102,7 @@ export function pushToURL(artistName) {
 
   window.history.pushState({}, "", newURL);
 }
-export function fetchFromURL(query) {
+function fetchFromURL(query) {
   const params = new URLSearchParams(query);
   const artist = params.get("artist");
   if (artist) {
@@ -1156,11 +1114,10 @@ export function fetchFromURL(query) {
 
 
 
-
-//////////////////////////////////////////////////////////////////////////
-/////////  Similar Artists  //////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-export function getSimilarArtists(artistName) {
+/////////////////////////////////////////////////////////////
+/////////  Similar Artists  /////////////////////////////////
+/////////////////////////////////////////////////////////////
+function getSimilarArtists(artistName) {
   const artist = musicLibrary.find((artist) => artist.artist === artistName);
 
   if (artist) {
@@ -1170,7 +1127,7 @@ export function getSimilarArtists(artistName) {
   }
   return [];
 }
-export function loadPlayingArtistSimilar(artistName) {
+function loadPlayingArtistSimilar(artistName) {
   const playingSimilarArtistsArea = document.createElement("div");
   playingSimilarArtistsArea.id = "playingSimilarArtistsArea";
   playingSimilarArtistsArea.classList.add("similarArtistsPlayingArea");
@@ -1196,7 +1153,31 @@ export function loadPlayingArtistSimilar(artistName) {
   // Create the Load More button with the spinner
   const loadMoreButton = document.createElement("button");
   loadMoreButton.id = "loadMoreSimilarArtists";
-  loadMoreButton.classList.add("inline-block", "rounded-full", "bg-green-500", "text-neutral-50", "shadow-[0_4px_9px_-4px_rgba(51,45,45,0.7)]", "hover:bg-green-600", "hover:shadow-[0_8px_9px_-4px_rgba(51,45,45,0.2),0_4px_18px_0_rgba(51,45,45,0.1)]", "focus:bg-green-800", "focus:shadow-[0_8px_9px_-4px_rgba(51,45,45,0.2),0_4px_18px_0_rgba(51,45,45,0.1)]", "active:bg-green-700", "active:shadow-[0_8px_9px_-4px_rgba(51,45,45,0.2),0_4px_18px_0_rgba(51,45,45,0.1)]", "px-6", "pb-2", "pt-2.5", "text-s", "font-medium", "uppercase", "leading-normal", "transition", "duration-150", "ease-in-out", "focus:outline-none", "focus:ring-0");
+  loadMoreButton.classList.add(
+    "inline-block",
+    "rounded-full",
+    "bg-green-500",
+    "text-neutral-50",
+    "shadow-[0_4px_9px_-4px_rgba(51,45,45,0.7)]",
+    "hover:bg-green-600",
+    "hover:shadow-[0_8px_9px_-4px_rgba(51,45,45,0.2),0_4px_18px_0_rgba(51,45,45,0.1)]",
+    "focus:bg-green-800",
+    "focus:shadow-[0_8px_9px_-4px_rgba(51,45,45,0.2),0_4px_18px_0_rgba(51,45,45,0.1)]",
+    "active:bg-green-700",
+    "active:shadow-[0_8px_9px_-4px_rgba(51,45,45,0.2),0_4px_18px_0_rgba(51,45,45,0.1)]",
+    "px-6",
+    "pb-2",
+    "pt-2.5",
+    "text-s",
+    "font-medium",
+    "uppercase",
+    "leading-normal",
+    "transition",
+    "duration-150",
+    "ease-in-out",
+    "focus:outline-none",
+    "focus:ring-0"
+  );
   loadMoreButton.innerHTML = `
     <div role="status" class="inline-block h-3 w-3 mr-2 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] invisible">
       <span class="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
@@ -1205,7 +1186,6 @@ export function loadPlayingArtistSimilar(artistName) {
   `;
   loadMoreButton.disabled = false;
 
-
   const similarArtists = getSimilarArtists(artistName);
   let displayedCount = 0;
 
@@ -1213,7 +1193,27 @@ export function loadPlayingArtistSimilar(artistName) {
   const popover = document.createElement("div");
   popover.id = "popover";
   popover.setAttribute("role", "tooltip");
-  popover.classList.add("popOverGlobal", "absolute", "z-10", "invisible", "inline-block", "w-64", "text-sm", "text-gray-500", "transition-opacity", "duration-300", "bg-white", "border", "border-gray-200", "rounded-lg", "shadow-sm", "opacity-0", "dark:text-gray-400", "dark:bg-gray-800", "dark:border-gray-600");
+  popover.classList.add(
+    "popOverGlobal",
+    "absolute",
+    "z-10",
+    "invisible",
+    "inline-block",
+    "w-64",
+    "text-sm",
+    "text-gray-500",
+    "transition-opacity",
+    "duration-300",
+    "bg-white",
+    "border",
+    "border-gray-200",
+    "rounded-lg",
+    "shadow-sm",
+    "opacity-0",
+    "dark:text-gray-400",
+    "dark:bg-gray-800",
+    "dark:border-gray-600"
+  );
   document.body.appendChild(popover); // Append the popover to the body
 
   const renderSimilarArtists = () => {
@@ -1226,7 +1226,7 @@ export function loadPlayingArtistSimilar(artistName) {
       artistDiv.className = "artistSimilar";
       artistDiv.innerHTML = `
         <div class="imgBx">
-          <img src="https://mybeats.cloud/mediaFiles/artistPortraits/${similarArtist.toLowerCase().replace(/\s/g,"")}.png" alt="${similarArtist.toLowerCase().replace(/\s/g,"")}">
+          <img src="https://mybeats.cloud/mediaFiles/artistPortraits/${similarArtist.toLowerCase().replace(/\s/g, "")}.png" alt="${similarArtist.toLowerCase().replace(/\s/g, "")}">
         </div>
         <div class="content">
           <div class="contentBx">
@@ -1274,7 +1274,7 @@ export function loadPlayingArtistSimilar(artistName) {
       setTimeout(() => {
         scrollAbleInside.scrollBy({
           left: scrollAbleInside.scrollWidth - previousScrollWidth, // Scroll by the difference in width
-          behavior: "smooth"
+          behavior: "smooth",
         });
       }, 0); // Use a small timeout to ensure the DOM updates before scrolling
 
@@ -1292,14 +1292,14 @@ export function loadPlayingArtistSimilar(artistName) {
   arrowLeft.addEventListener("click", () => {
     scrollAbleInside.scrollBy({
       left: -scrollAbleInside.clientWidth,
-      behavior: "smooth"
+      behavior: "smooth",
     });
   });
 
   arrowRight.addEventListener("click", () => {
     scrollAbleInside.scrollBy({
       left: scrollAbleInside.clientWidth,
-      behavior: "smooth"
+      behavior: "smooth",
     });
   });
 
@@ -1308,25 +1308,25 @@ export function loadPlayingArtistSimilar(artistName) {
     arrowRight.disabled = scrollAbleInside.scrollLeft + scrollAbleInside.clientWidth >= scrollAbleInside.scrollWidth;
   });
 }
-export function initializePopovers() {
-  const popoverTriggers = document.querySelectorAll('[data-popover-target]');
+function initializePopovers() {
+  const popoverTriggers = document.querySelectorAll("[data-popover-target]");
 
-  popoverTriggers.forEach(trigger => {
-    trigger.addEventListener('click', (event) => {
+  popoverTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
       event.stopPropagation();
 
       // Remove existing popover if any
-      const existingPopover = document.getElementById('popover');
+      const existingPopover = document.getElementById("popover");
       if (existingPopover) {
         existingPopover.remove();
       }
 
       // Create a new popover
-      const popover = document.createElement('div');
-      popover.id = 'popover';
+      const popover = document.createElement("div");
+      popover.id = "popover";
       popover.className = "popOverGlobal";
 
-      const artist = trigger.getAttribute('data-artist');
+      const artist = trigger.getAttribute("data-artist");
       const rect = trigger.getBoundingClientRect();
 
       popover.innerHTML = `
@@ -1371,26 +1371,26 @@ export function initializePopovers() {
 
       document.body.appendChild(popover);
 
-      popover.style.position = 'absolute';
+      popover.style.position = "absolute";
       popover.style.top = `${rect.bottom + window.scrollY}px`;
       popover.style.left = `${rect.left + window.scrollX}px`;
 
       // Show popover
-      popover.classList.remove('invisible', 'opacity-0');
+      popover.classList.remove("invisible", "opacity-0");
 
       // Close when clicking outside
-      document.addEventListener('click', handleOutsideClick);
+      document.addEventListener("click", handleOutsideClick);
 
       function handleOutsideClick(event) {
-        if (!popover.contains(event.target) && !event.target.closest('[data-popover-target]')) {
-          popover.classList.add('invisible', 'opacity-0');
+        if (!popover.contains(event.target) && !event.target.closest("[data-popover-target]")) {
+          popover.classList.add("invisible", "opacity-0");
 
           // Wait for animation (optional) then remove
           setTimeout(() => {
             popover.remove();
           }, 300); // Adjust time as per CSS transition duration
 
-          document.removeEventListener('click', handleOutsideClick);
+          document.removeEventListener("click", handleOutsideClick);
         }
       }
     });
@@ -1399,25 +1399,24 @@ export function initializePopovers() {
 
 
 
-
-//////////////////////////////////////////////////////////////////////////
-/////////  F A V O R I T E S   ///////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+/////////  F A V O R I T E S   ///////////////////////////////
+//////////////////////////////////////////////////////////////
 //let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
-export function isRendering(songData, type) {
+function isRendering(songData, type) {
   ///////////  If Lists are empty  /////////////////////////
   if (songData.length === 0) {
-    const message = type === "favorites" ? "No favorites added.": "No songs in queue.";
+    const message = type === "favorites" ? "No favorites added." : "No songs in queue.";
     myMusic.innerHTML = `<p>${message}</p>`;
     return;
   }
 
   ///////////  Favorites and Up Next Queue  ////////////////
   songData.forEach((songOrId) => {
-    const song = type === "favorites" ? findSongById(songOrId): songOrId;
+    const song = type === "favorites" ? findSongById(songOrId) : songOrId;
     if (song) {
       const songDiv = document.createElement("div");
-      songDiv.classList.add("song", type === "favorites" ? "favoriteSong": "up-next-song");
+      songDiv.classList.add("song", type === "favorites" ? "favoriteSong" : "up-next-song");
       songDiv.innerHTML = `
       <span class="title">${song.title}</span>
       <span class="artist">${song.artist}</span>
@@ -1428,7 +1427,7 @@ export function isRendering(songData, type) {
     }
   });
 }
-export function getSongById(songId) {
+function getSongById(songId) {
   for (const artist of musicLibrary) {
     for (const album of artist.albums) {
       const song = album.songs.find((song) => song.id === songId);
@@ -1436,14 +1435,14 @@ export function getSongById(songId) {
         return {
           ...song,
           artist: artist.artist,
-          album: album.album
+          album: album.album,
         }; // Add artist information
       }
     }
   }
   return null;
 }
-export function loadFavorites() {
+function loadFavorites() {
   // Safely initialize favorites
   let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
   if (!Array.isArray(favorites)) {
@@ -1470,7 +1469,7 @@ export function loadFavorites() {
     }
   });
 }
-export function toggleFavorite(event) {
+function toggleFavorite(event) {
   event.stopPropagation();
 
   const heart = event.currentTarget;
@@ -1482,7 +1481,7 @@ export function toggleFavorite(event) {
 
   const songId = songElement.getAttribute("data-id");
   const songNameElement = songElement.querySelector(".title");
-  const songName = songNameElement ? songNameElement.textContent: "Unknown Song";
+  const songName = songNameElement ? songNameElement.textContent : "Unknown Song";
 
   // Safely retrieve favorites
   let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
@@ -1528,8 +1527,7 @@ export function toggleFavorite(event) {
         if (toastElement) {
           toastElement.classList.add("puff-out-ver");
         }
-      },
-        7500);
+      }, 7500);
     } else {
       console.warn("Toast container not found. Cannot show notification.");
     }
@@ -1540,21 +1538,21 @@ export function toggleFavorite(event) {
   addSongToFavorites();
   displayFavorites();
 }
-export function removeFromFavorites(songId) {
+function removeFromFavorites(songId) {
   const index = favorites.findIndex((song) => song.id === songId);
   if (index > -1) {
     favorites.splice(index, 1);
     myLibrary("favorites", favorites);
   }
 }
-export function getFavorites() {
-  const favorites = localStorage.getItem('favorites');
-  return favorites ? JSON.parse(favorites): [];
+function getFavorites() {
+  const favorites = localStorage.getItem("favorites");
+  return favorites ? JSON.parse(favorites) : [];
 }
-export function saveFavorites(favorites) {
-  localStorage.setItem('favorites', JSON.stringify(favorites));
+function saveFavorites(favorites) {
+  localStorage.setItem("favorites", JSON.stringify(favorites));
 }
-export function addSongToFavorites(songId) {
+function addSongToFavorites(songId) {
   const favorites = getFavorites();
   if (!favorites.includes(songId)) {
     favorites.push(songId);
@@ -1563,81 +1561,88 @@ export function addSongToFavorites(songId) {
     displayFavorites();
   }
 }
-export function removeSongFromFavorites(songId) {
+function removeSongFromFavorites(songId) {
   let favorites = getFavorites();
-  favorites = favorites.filter(id => id !== songId);
+  favorites = favorites.filter((id) => id !== songId);
   saveFavorites(favorites);
   updateHeartIcon(songId, false);
   displayFavorites();
 }
-export function updateHeartIcon(songId, isFavorited) {
+function updateHeartIcon(songId, isFavorited) {
   const songElement = document.querySelector(`.song[data-id="${songId}"]`);
   if (songElement) {
-    const heart = songElement.querySelector('.heart');
+    const heart = songElement.querySelector(".heart");
     if (heart) {
       if (isFavorited) {
-        heart.classList.remove('heart');
-        heart.classList.add('hearted');
+        heart.classList.remove("heart");
+        heart.classList.add("hearted");
       } else {
-        heart.classList.remove('hearted');
-        heart.classList.add('heart');
+        heart.classList.remove("hearted");
+        heart.classList.add("heart");
       }
     }
   }
 }
-export function handleHeartClick(event) {
+function handleHeartClick(event) {
   const heartIcon = event.target;
-  if (heartIcon.classList.contains('heart')) {
-    const songElement = heartIcon.closest('.song');
-    const songId = songElement.getAttribute('data-id');
+  if (heartIcon.classList.contains("heart")) {
+    const songElement = heartIcon.closest(".song");
+    const songId = songElement.getAttribute("data-id");
     addSongToFavorites(songId);
-  } else if (heartIcon.classList.contains('hearted')) {
-    const songElement = heartIcon.closest('.song');
-    const songId = songElement.getAttribute('data-id');
+  } else if (heartIcon.classList.contains("hearted")) {
+    const songElement = heartIcon.closest(".song");
+    const songId = songElement.getAttribute("data-id");
     removeSongFromFavorites(songId);
   }
 }
-export function displayFavorites() {
-  const favoritesContainer = document.getElementById('myFavorites');
-  favoritesContainer.innerHTML = ''; // Clear existing favorites
-  const favorites = getFavorites();
+function displayFavorites() {
+  const favoritesContainer = document.getElementById("myFavorites");
+  favoritesContainer.innerHTML = ""; // Clear existing favorites
 
+  const favorites = getFavorites();
   if (favorites.length === 0) {
-    favoritesContainer.innerHTML = '<p>No favorites added yet.</p>';
+    favoritesContainer.innerHTML = "<p>No favorites added yet.</p>";
     return;
   }
 
-  favorites.forEach(songId => {
+  // Create a container for the favorite songs
+  const favoritesList = document.createElement("div");
+  favoritesList.id = "favoritesList";
+  favoritesList.className = "space-y-2"; // Match the Up Next Queue styling
+
+  favorites.forEach((songId) => {
     const song = getSongById(songId);
     if (song) {
-      const songDiv = document.createElement("div");
-      songDiv.className = "favoriteSong";
-      songDiv.innerHTML = `
-      <div class="albumCoverContainer">
-      <div class="albumCover">
-      <img src="https://mybeats.cloud/mediaFiles/albumCovers/${song.album.toLowerCase().replace(/\s/g, "")}.png" alt="${song.album}">
-      </div>
-      </div>
-      <div class="song-details">
-      <p class="songTitle">${song.title}</p>
-      <p class="songArtist">${song.artist}</p>
-      <p class="songAlbum">${song.album}</p>
-      <span class="song-duration">${song.duration}</span>
-      </div>
-      <div class="song-controls">
-      <button class="infoButtonFAVs">ℹ</button>
-      <button class="FAVsRemove">✖</button>
-      </div>
+      const songElement = document.createElement("div");
+      songElement.className = "flex items-center justify-between p-2 bg-gray-50 rounded"; // Match the Up Next Queue styling
+      songElement.setAttribute("data-song-id", song.id); // Add song ID for double-click event
+      songElement.innerHTML = `
+        <span>${song.title}</span>
+        <span class="text-gray-500">${song.duration}</span>
       `;
-      favoritesContainer.appendChild(songDiv);
+      favoritesList.appendChild(songElement);
     }
   });
+
+  favoritesContainer.appendChild(favoritesList);
+
+  // Add double-click event listeners to favorite songs
+  const favoriteSongs = document.querySelectorAll("#favoritesList > div");
+  favoriteSongs.forEach((songElement) => {
+    songElement.addEventListener("dblclick", () => {
+      const songId = songElement.getAttribute("data-song-id");
+      const song = findSongById(songId); // Find the song by its ID
+      if (song) {
+        playSong(song); // Play the song
+      }
+    });
+  });
 }
-export function initializeFavorites() {
+function initializeFavorites() {
   // Attach click event listeners to all heart icons
-  const heartIcons = document.querySelectorAll('.heart, .hearted');
-  heartIcons.forEach(heart => {
-    heart.addEventListener('click', handleHeartClick);
+  const heartIcons = document.querySelectorAll(".heart, .hearted");
+  heartIcons.forEach((heart) => {
+    heart.addEventListener("click", handleHeartClick);
   });
 
   // Display favorites on page load
@@ -1645,27 +1650,27 @@ export function initializeFavorites() {
 
   // Update heart icons based on favorites in localStorage
   const favorites = getFavorites();
-  favorites.forEach(songId => {
+  favorites.forEach((songId) => {
     updateHeartIcon(songId, true);
   });
 }
 
 
 
-
-//////////////////////////////////////////////////////////////////////////
-/////////  U P  N E X T  Q U E U E  //////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////
+/////////  U P  N E X T  Q U E U E  /////////////////////////
+/////////////////////////////////////////////////////////////
 let queue = [];
-export function addToQueue(song) {
-  const queueList = document.getElementById("myQueue");
+
+function addToQueue(song) {
+  const queueList = document.getElementById("queue");
   const newItem = createQueueItemElement(song);
   queueList.appendChild(newItem);
   saveQueue(queueList);
   updateQueueCount(queueList);
 }
-export function playNextSong() {
-  const queueList = document.getElementById("myQueue");
+function playNextSong() {
+  const queueList = document.getElementById("queue");
   if (queueList.children.length > 0) {
     const nextSongElement = queueList.children[0];
     const nextSong = {
@@ -1674,7 +1679,7 @@ export function playNextSong() {
       artist: nextSongElement.querySelector(".song-artist").textContent,
       album: nextSongElement.dataset.album,
       duration: nextSongElement.querySelector(".song-duration").textContent,
-      downloadPath: nextSongElement.dataset.downloadPath
+      downloadPath: nextSongElement.dataset.downloadPath,
     };
     nextSongElement.remove();
     saveQueue(queueList);
@@ -1682,7 +1687,7 @@ export function playNextSong() {
     playSong(nextSong);
   } else {
     currentSongIndex = (currentSongIndex + 1) % currentAlbumSongs.length;
-    if (currentSongIndex === 0 && repeatMode !== 'all') {
+    if (currentSongIndex === 0 && repeatMode !== "all") {
       audioElement.pause();
       audioElement.currentTime = 0;
     } else {
@@ -1690,8 +1695,8 @@ export function playNextSong() {
     }
   }
 }
-export function addQueueSongEventListeners() {
-  const queueList = document.getElementById("myQueue");
+function addQueueSongEventListeners() {
+  const queueList = document.getElementById("queue");
   queueList.addEventListener("dblclick", (event) => {
     const songElement = event.target.closest(".queue-item");
     if (songElement) {
@@ -1701,33 +1706,28 @@ export function addQueueSongEventListeners() {
         artist: songElement.querySelector(".song-artist").textContent,
         album: songElement.dataset.album,
         duration: songElement.querySelector(".song-duration").textContent,
-        downloadPath: songElement.dataset.downloadPath
+        downloadPath: songElement.dataset.downloadPath,
       };
       playSong(song);
     }
   });
 }
-export function initQueueManager() {
-  const queueList = document.getElementById("myQueue");
+function initQueueManager() {
+  const queueList = document.getElementById("queue");
   const clearQueueBtn = document.querySelector(".clear-queue-btn");
-
   initQueueEventListeners(queueList, clearQueueBtn);
   loadQueue(queueList);
+  addQueueSongEventListeners();
 }
-export function initQueueEventListeners(queueList, clearQueueBtn) {
-  // Drag and Drop Functionality
+function initQueueEventListeners(queueList, clearQueueBtn) {
   queueList.addEventListener("dragstart", handleDragStart);
   queueList.addEventListener("dragover", handleDragOver);
   queueList.addEventListener("drop", handleDrop);
   queueList.addEventListener("dragend", handleDragEnd);
-
-  // Remove Song Interactions
   queueList.addEventListener("click", handleRemoveSong);
-
-  // Clear Queue
   clearQueueBtn.addEventListener("click", () => clearQueue(queueList));
 }
-export function handleRemoveSong(e) {
+function handleRemoveSong(e) {
   if (e.target.classList.contains("icon-remove")) {
     const songItem = e.target.closest(".queue-item");
     songItem.remove();
@@ -1735,35 +1735,31 @@ export function handleRemoveSong(e) {
     updateQueueCount(queueList);
   }
 }
-export function clearQueue(queueList) {
+function clearQueue(queueList) {
   queueList.innerHTML = "";
   saveQueue(queueList);
   updateQueueCount(queueList);
 }
-export function saveQueue(queueList) {
+function saveQueue(queueList) {
   const queueItems = Array.from(queueList.children).map((item) => ({
     id: item.dataset.songId,
     title: item.querySelector(".song-title").textContent,
     artist: item.querySelector(".song-artist").textContent,
     album: item.dataset.album,
     duration: item.querySelector(".song-duration").textContent,
-    downloadPath: item.dataset.downloadPath
+    downloadPath: item.dataset.downloadPath,
   }));
-
   localStorage.setItem("musicQueue", JSON.stringify(queueItems));
 }
-export function loadQueue(queueList) {
+function loadQueue(queueList) {
   const savedQueue = JSON.parse(localStorage.getItem("musicQueue") || "[]");
-
   savedQueue.forEach((song) => {
     const newItem = createQueueItemElement(song);
     queueList.appendChild(newItem);
   });
-
   updateQueueCount(queueList);
 }
-export function createQueueItemElement(song) {
-  // Create queue item dynamically based on saved data
+function createQueueItemElement(song) {
   const li = document.createElement("li");
   li.classList.add("queue-item");
   li.setAttribute("draggable", "true");
@@ -1771,11 +1767,10 @@ export function createQueueItemElement(song) {
   li.dataset.album = song.album;
   li.dataset.downloadPath = song.downloadPath;
 
-  // Populate with song details matching the structure in structure.html
   li.innerHTML = `
     <div class="drag-handle">⋮</div>
     <div class="song-thumbnail">
-      <img src="https://mybeats.cloud/mediaFiles/albumCovers/${song.albumCover}" alt="${song.title} Thumbnail">
+      <img src="https://mybeats.cloud/mediaFiles/artistPortraits/${song.artist.toLowerCase().replace(/\s/g, "")}.png" alt="${song.title} Thumbnail">
       <div class="hover-overlay">
         <i class="icon-remove">✖</i>
       </div>
@@ -1789,428 +1784,367 @@ export function createQueueItemElement(song) {
 
   return li;
 }
-export function updateQueueCount(queueList) {
+function updateQueueCount(queueList) {
   const queueCountElement = document.querySelector(".queue-count");
   const currentCount = queueList.children.length;
   queueCountElement.textContent = `(${currentCount} songs)`;
 }
-export function handleDragStart(e) {
-  e.dataTransfer.effectAllowed = "move";
-  e.dataTransfer.setData("text/html", e.target.outerHTML);
+function handleDragStart(e) {
+  if (!e.target.classList.contains("queue-item")) return;
   e.target.classList.add("dragging");
+  e.dataTransfer.setData("text/plain", e.target.dataset.songId);
+  e.dataTransfer.effectAllowed = "move";
 }
-export function handleDragOver(e) {
+function handleDragOver(e) {
   e.preventDefault();
-  e.dataTransfer.dropEffect = "move";
-  const dragging = document.querySelector(".dragging");
-  const target = e.target.closest(".queue-item");
-  if (target && target !== dragging) {
-    queueList.insertBefore(dragging, target.nextSibling || target);
+  const draggedItem = document.querySelector(".dragging");
+  const afterElement = getDragAfterElement(queueList, e.clientY);
+  if (afterElement) {
+    queueList.insertBefore(draggedItem, afterElement);
+  } else {
+    queueList.appendChild(draggedItem);
   }
 }
-export function handleDragEnd() {
-  document.querySelector(".dragging").classList.remove("dragging");
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll(".queue-item:not(.dragging)")];
+  return draggableElements.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    },
+    { offset: Number.NEGATIVE_INFINITY }
+  ).element;
+}
+function handleDrop(e) {
+  e.preventDefault();
   saveQueue(queueList);
 }
-
-
-
-
-
-//////////////////////////////////////////////////////////////////////////
-/////////   P L A Y L I S T S  ///////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-let collections = {};
-let tags = [];
-
-const addTag = document.getElementById("addTagBtn");
-const editPlaylist = document.querySelector("#playlistEditModal .form-submit-btn");
-const uploadPhoto = document.querySelector("#creatorModal .drop-container");
-const createButton = document.querySelector("#creatorModal .form-submit-btn");
-const closeMe = document.querySelectorAll(".close");
-
-export function thumbNails(file, callback) {
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = () => callback(reader.result);
-  reader.onerror = (error) => console.error("Error converting to Base64:", error);
+function handleDragEnd(e) {
+  e.target.classList.remove("dragging");
+  updateQueueCount(queueList);
 }
-export function create(title, description, tags, genre, thumbnail) {
-  const id = playlistIDs();
-  collections[id] = {
-    id,
-    title,
-    description: description || "",
-    tags: tags || "",
-    genre: genre || "",
-    tracks: [],
-    thumbnail: thumbnail || null,
+
+
+
+/////////////////////////////////////////////////////////////
+/////////  P L A Y L I S T S  ///////////////////////////////
+/////////////////////////////////////////////////////////////
+let playlists = JSON.parse(localStorage.getItem("playlists") || "[]");
+
+function resetCreateForm() {
+  $("#playlistTitleInput").val("");
+  $("#playlistDescriptionInput").val("");
+  $("#genreSelect").val("");
+  $("#tagContainer").empty();
+  $("#tagInput").val("");
+  $("#coverUpload").val("");
+}
+function createPlaylist(title, description, genre, tags, coverImage) {
+  const newPlaylist = {
+    id: Date.now(),
+    title: title,
+    description: description,
+    genre: genre,
+    tags: tags,
+    coverImage: coverImage || "/api/placeholder/300/300",
+    songs: [],
   };
-  savePlaylist();
-  displayPlaylists();
+  playlists.push(newPlaylist);
+  localStorage.setItem("playlists", JSON.stringify(playlists));
+  $("#createPlaylistModal").addClass("hidden");
+  resetCreateForm();
+  renderPlaylistGallery();
 }
-export function savePlaylist() {
-  localStorage.setItem("collections", JSON.stringify(collections));
-}
-export function loadPlaylist() {
-  const storedCollections = localStorage.getItem("collections");
-  if (storedCollections) {
-    collections = JSON.parse(storedCollections);
-    displayPlaylists();
-  }
-}
-export function displayPlaylists() {
-  setPage({
-    "data-page": "collections"
-  });
-
-  const dynamicArea = document.getElementById("dynamicArea");
-  dynamicArea.innerHTML = '<div class="playlistGrid"></div>';
-  const playlistGrid = document.querySelector(".playlistGrid");
-
-  Object.values(collections).forEach((collection) => {
-    const playlistThumbnail = document.createElement("div");
-    playlistThumbnail.className = "playlistThumbnail";
-    playlistThumbnail.id = collection.id;
-    playlistThumbnail.setAttribute("data-transition", "loaders");
-
-    const thumbnail = collection.thumbnail ? `<img src="${collection.thumbnail}" alt="${collection.title} Thumbnail" style="width: 150px; height: 150px; border-radius: 10px;">`: "";
-
-    playlistThumbnail.innerHTML = `
-    ${thumbnail}
-    <div class="playlistDetails">
-    <h3 style="margin: 10px 0;">${collection.title}</h3>
-    <p class="tags">
-    <span class="playlistTag">${collection.tags || "No tags"}</span></p>
-    <p style="color: #999;">${collection.tracks.length} Songs</p>
-    <button class="viewPlaylistsBtn editPlaylist" data-id="${collection.id}">Edit</button>
-    </div>
-    <br><br>
-    `;
-
-    // Add click event for opening playlist details
-    playlistThumbnail.addEventListener("click", function () {
-      setTimeout(() => {
-        displayPlaylistsInfo(collection.id);
-      }, 1000);
+function renderPlaylistGallery() {
+  const $gallery = $("#playlistGallery").empty();
+  $.each(playlists, function (index, playlist) {
+    const $card = $(`
+                <div class="playlist-thumbnail bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer">
+                    <img src="${playlist.coverImage}" alt="${playlist.title}" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-lg mb-2">${playlist.title}</h3>
+                        <p class="text-gray-600 text-sm mb-2">${playlist.description}</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${playlist.tags.map((tag) => `<span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">${tag}</span>`).join("")}
+                        </div>
+                    </div>
+                </div>
+            `).on("click", function () {
+      loadPlaylist(playlist.id);
     });
-
-    playlistGrid.appendChild(playlistThumbnail);
+    $gallery.append($card);
   });
-
-  // Append "Create New Playlist" Button
-  const createNewBtn = document.createElement("button");
-  createNewBtn.id = "openCreatePlaylistModal";
-  createNewBtn.className = "viewPlaylistsBtn";
-  createNewBtn.textContent = "Create New Playlist";
-  dynamicArea.appendChild(createNewBtn);
-
-  // Show the "Create Playlist" Modal on Button Click
-  createNewBtn.addEventListener("click", function () {
-    document.getElementById("creatorModal").classList.add("visible");
-  });
-
-  setActiveLink("myCollections");
 }
-export function displayPlaylistsInfo(collectionId) {
-  const collection = collections[collectionId];
-  if (!collection) {
-    console.error("Playlist not found!");
-    return;
-  }
-
-  // Ensure the dynamicArea exists before rendering
-  const dynamicArea = document.getElementById("dynamicArea");
-  if (!dynamicArea) {
-    console.error("Dynamic area not found!");
-    return;
-  }
-
-  const thumbnail = collection.thumbnail ? `<img src="${collection.thumbnail}" alt="${collection.title} Thumbnail" class="playlist-thumbnail">`: ""; // Updated to use a class for styling
-
-  const tagsHtml = collection.tags
-  ? collection.tags
-  .split(",")
-  .map((tag) => `<span class="playlist-tag">${tag.trim()}</span>`)
-  .join(" "): "No tags";
-
-  // Render playlist details
-  dynamicArea.innerHTML = `
-  <div class="mainPlaylist playlistDetailsView">
-  <div class="playlist-header">
-  <div class="currentplaying">
-  ${thumbnail}
-  </div>
-  <div class="details">
-  <h3 class="heading">${collection.title}</h3>
-  <div class="playlistTags">${tagsHtml}</div>
-  <p class="playlistGenre">Genre: ${collection.genre || "Other"}</p>
-  <p class="playlistDescription">${collection.description || "My favourite songs!"}</p>
-  <p>${collection.tracks.length} <strong>Songs</strong></p>
-  <button id="editPlaylistBtn" class="viewPlaylistsBtn" data-id="${collectionId}">Edit</button>
-  </div>
-  </div>
-
-  <div id="playlistTracks" class="playlist-songs">
-  ${collection.tracks.length > 0 ? "": "<p>You haven't added any songs yet!</p>"}
-  </div>
-  </div>
-  `;
-
-  const playlistTracks = document.getElementById("playlistTracks");
-  collection.tracks.forEach((track) => {
-    const trackItem = document.createElement("div");
-    trackItem.className = "track";
-    trackItem.id = track.id;
-    trackItem.innerHTML = `
-    <div class="loaderPlaylist">
-    <div class="songPlaylist">
-    <p class="name">${track.title}</p>
-    <button class="removeTrackFromDetails" data-id="${track.id}">Remove</button>
-    <p class="artistPlaylist">${track.artist}</p>
-    </div>
-    <div class="albumcoverPlaylist"></div>
-    <div class="play"></div>
-    </div>
-    `;
-
-    playlistTracks.appendChild(trackItem);
-
-    trackItem.querySelector(".removeTrackFromDetails").addEventListener("click", () => {
-      removeSong(collectionId, track.id);
-      displayPlaylistsInfo(collectionId); // Re-render the details after removal
+function loadPlaylist(playlistId) {
+  $("#playlistGallery").addClass("hidden");
+  $("#playlistView").removeClass("hidden").html(`
+            <div class="flex justify-center items-center h-64">
+                <svg class="loading w-12 h-12 text-blue-600" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        `);
+  setTimeout(function () {
+    const playlist = playlists.find(function (p) {
+      return p.id === playlistId;
     });
-  });
-
-  document.getElementById("editPlaylistBtn").addEventListener("click", function () {
-    playlistEditor(collectionId);
-  });
-}
-export function playlistPopOver(collectionId, trackTitle, trackArtist) {
-  const newTrack = {
-    id: playlistIDs(),
-    title: trackTitle,
-    artist: trackArtist,
-  };
-  collections[collectionId].tracks.push(newTrack);
-  savePlaylist();
-}
-export function playlistEditor(collectionId) {
-  const collection = collections[collectionId];
-  if (!collection) return;
-
-  document.getElementById("editTitle").value = collection.title;
-  document.getElementById("editDescription").value = collection.description;
-  document.getElementById("editTags").value = collection.tags;
-  document.getElementById("editGenre").value = collection.genre;
-  document.getElementById("editThumbnailPreview").src = collection.thumbnail || "";
-  document.getElementById("playlistEditModal").classList.add("visible");
-
-  // Save collection ID to track which playlist is being edited
-  document.getElementById("playlistEditModal").dataset.currentCollectionId = collectionId;
-
-  // Render tracks within the playlist
-  const trackList = document.getElementById("trackList");
-  trackList.innerHTML = "";
-  collection.tracks.forEach((track) => {
-    trackList.innerHTML += `
-    <div class="track" id="${track.id}">
-    <p><strong>${track.title}</strong> by ${track.artist}</p>
-    <button class="removeTrack" data-track-id="${track.id}">Remove</button>
-    </div>
-    `;
-  });
-
-  // Handle track removal
-  document.querySelectorAll(".removeTrack").forEach((button) => {
-    button.onclick = function () {
-      const trackId = button.dataset.trackId;
-      removeSong(collectionId, trackId);
-    };
-  });
-}
-export function removeSong(collectionId, trackId) {
-  collections[collectionId].tracks = collections[collectionId].tracks.filter((track) => track.id !== trackId);
-  savePlaylist();
-  playlistEditor(collectionId);
-}
-export function playlistIDs() {
-  return "id-" + Math.random().toString(36).substr(2, 16);
-}
-export function EditorCLOSE(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove("visible");
-  }
-}
-export function displayTags() {
-  const container = document.getElementById("tags-input-container");
-  container.innerHTML = "";
-
-  tags.forEach((tag, index) => {
-    const tagElement = document.createElement("span");
-    tagElement.classList.add("tag");
-    tagElement.innerHTML = `${tag} <span class="remove-tag" data-index="${index}">&times;</span>`;
-    container.appendChild(tagElement);
-  });
-}
-
-const closeCreatorModalBtn = document.getElementById("closeCreatorModal");
-if (closeCreatorModalBtn) {
-  closeCreatorModalBtn.addEventListener("click", () => {
-    EditorCLOSE("creatorModal");
-  });
-}
-
-const closeEditModalBtn = document.getElementById("closeEditModal");
-if (closeEditModalBtn) {
-  closeEditModalBtn.addEventListener("click", () => {
-    EditorCLOSE("playlistEditModal");
-  });
-}
-
-const myCollectionsBtn = document.getElementById("myCollections");
-if (myCollectionsBtn) {
-  myCollectionsBtn.addEventListener("click", function () {
-    setTimeout(displayPlaylists, 1000);
-  });
-}
-
-const createBtn = document.getElementById("create");
-if (createBtn) {
-  createBtn.addEventListener("click", () => {
-    const createPlaylistModal = document.getElementById("creatorModal");
-    if (createPlaylistModal) {
-      createPlaylistModal.classList.add("visible");
-      const insideModal = createPlaylistModal.querySelector(".insideModal");
-
-      if (insideModal) {
-        setTimeout(() => {
-          insideModal.style.animation = "modalEnter 0.6s ease-in-out forwards";
-        }, 50);
-      }
-    }
-  });
-}
-
-const savePlaylistChangesBtn = document.getElementById("savePlaylistChanges");
-if (savePlaylistChangesBtn) {
-  savePlaylistChangesBtn.addEventListener("click", function () {
-    const collectionId = document.getElementById("playlistEditModal")?.dataset.currentCollectionId;
-    if (!collectionId) return;
-
-    const updatedTitle = document.getElementById("editTitle")?.value.trim();
-    const updatedDescription = document.getElementById("editDescription")?.value.trim();
-    const updatedTags = document.getElementById("editTags")?.value.trim();
-    const updatedGenre = document.getElementById("editGenre")?.value.trim();
-    const fileInput = document.getElementById("editThumbnail");
-    const updatedThumbnail = fileInput && fileInput.files.length > 0 ? URL.createObjectURL(fileInput.files[0]): collections[collectionId].thumbnail;
-
-    collections[collectionId].title = updatedTitle || collections[collectionId].title;
-    collections[collectionId].description = updatedDescription || collections[collectionId].description;
-    collections[collectionId].tags = updatedTags || collections[collectionId].tags;
-    collections[collectionId].genre = updatedGenre || collections[collectionId].genre;
-    collections[collectionId].thumbnail = updatedThumbnail;
-
-    savePlaylist();
-    displayPlaylists();
-    EditorCLOSE("playlistEditModal");
-  });
-}
-
-closeMe.forEach((closeBtn) => {
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      const modal = closeBtn.closest(".modal");
-      if (modal) {
-        modal.classList.remove("visible");
-      }
-    });
-  }
-});
-createButton.addEventListener("click", function () {
-  const title = document.getElementById("createTitle").value.trim();
-  const description = document.getElementById("createDescription").value.trim();
-  const genre = document.getElementById("createGenre").value.trim();
-  const fileInput = document.getElementById("uploadThumbnail");
-
-  if (title) {
-    if (fileInput && fileInput.files.length > 0) {
-      // Convert file to Base64 and pass it to create
-      thumbNails(fileInput.files[0], (base64Image) => {
-        create(title, description, tags.join(", "), genre, base64Image);
-        EditorCLOSE("creatorModal");
-      });
+    if (playlist) {
+      renderPlaylistView(playlist);
     } else {
-      // If no image is uploaded, call create with null for the thumbnail
-      create(title, description, tags.join(", "), genre, null);
-      EditorCLOSE("creatorModal");
+      alert("Playlist not found!");
+      $("#playlistView").addClass("hidden");
+      $("#playlistGallery").removeClass("hidden");
     }
+  }, 1000);
+}
+function renderPlaylistView(playlist) {
+  $("#playlistView").attr("data-playlist-id", playlist.id).html(`
+    <div class="flex items-center mb-6">
+      <button id="backToGallery" class="mr-4 text-gray-600 hover:text-gray-800">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+      </button>
+      <h2 class="text-2xl font-bold text-gray-800" id="playlistTitle">${playlist.title}</h2>
+      <button id="editPlaylistBtn" class="ml-4 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">Edit</button>
+      <button id="savePlaylistBtn" class="ml-4 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 hidden">Save</button>
+    </div>
+    <div id="playlistDetails" class="bg-white rounded-lg shadow-lg p-6">
+      <div class="flex mb-6">
+        <img src="${playlist.coverImage}" alt="${playlist.title}" class="w-48 h-48 object-cover rounded-lg">
+        <div class="ml-6">
+          <h3 class="text-xl font-bold mb-2" data-field="title">${playlist.title}</h3>
+          <p class="text-gray-600 mb-4" data-field="description">${playlist.description}</p>
+          <p class="text-sm text-gray-500 mb-2">Genre: <span data-field="genre">${playlist.genre}</span></p>
+          <div class="flex flex-wrap gap-2">
+            ${playlist.tags.map((tag) => `<span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">${tag}</span>`).join("")}
+          </div>
+        </div>
+      </div>
+      <div class="border-t pt-4">
+        <h4 class="font-bold mb-4">Songs</h4>
+        <div class="space-y-2" id="playlistSongs">
+          ${
+            playlist.songs.length
+              ? playlist.songs
+                  .map(
+                    (song, i) => `
+            <div class="flex items-center justify-between p-2 bg-gray-50 rounded" data-song-id="${song.id}">
+              <span>${i + 1}. ${song.title}</span>
+              <span class="text-gray-500">${song.duration}</span>
+            </div>
+          `
+                  )
+                  .join("")
+              : '<p class="text-gray-500">No songs added yet</p>'
+          }
+        </div>
+        <button id="addSongBtn" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">Add Song</button>
+      </div>
+    </div>
+  `);
+
+  // Add double-click event listeners to playlist songs
+  const playlistSongs = document.querySelectorAll("#playlistSongs > div");
+  playlistSongs.forEach((songElement) => {
+    songElement.addEventListener("dblclick", () => {
+      const songId = songElement.getAttribute("data-song-id");
+      const song = findSongById(songId); // Find the song by its ID
+      if (song) {
+        playSong(song); // Play the song
+      }
+    });
+  });
+}
+function enableInlineEditing() {
+  const playlistId = parseInt($("#playlistView").attr("data-playlist-id"));
+  const $title = $('[data-field="title"]').attr("contenteditable", true).addClass("border border-blue-300 rounded px-2 focus:outline-none focus:border-blue-500");
+  const $description = $('[data-field="description"]').attr("contenteditable", true).addClass("border border-blue-300 rounded px-2 focus:outline-none focus:border-blue-500");
+  const currentGenre = $('[data-field="genre"]').text();
+  const $genreSelect = $(`
+            <select class="border border-gray-300 rounded px-2 py-1">
+                <option value="pop" ${currentGenre === "pop" ? "selected" : ""}>Pop</option>
+                <option value="rock" ${currentGenre === "rock" ? "selected" : ""}>Rock</option>
+                <option value="jazz" ${currentGenre === "jazz" ? "selected" : ""}>Jazz</option>
+                <option value="classical" ${currentGenre === "classical" ? "selected" : ""}>Classical</option>
+                <option value="electronic" ${currentGenre === "electronic" ? "selected" : ""}>Electronic</option>
+                <option value="hip-hop" ${currentGenre === "hip-hop" ? "selected" : ""}>Hip Hop</option>
+            </select>
+        `);
+  $('[data-field="genre"]').replaceWith($genreSelect);
+}
+function savePlaylistChanges() {
+  const playlistId = parseInt($("#playlistView").attr("data-playlist-id"));
+  const playlist = playlists.find(function (p) {
+    return p.id === playlistId;
+  });
+  if (playlist) {
+    playlist.title = $('[data-field="title"]').text().trim();
+    playlist.description = $('[data-field="description"]').text().trim();
+    playlist.genre = $("select").val();
+    localStorage.setItem("playlists", JSON.stringify(playlists));
+    $("[contenteditable]").removeAttr("contenteditable").removeClass("border border-blue-300 rounded px-2 focus:outline-none focus:border-blue-500");
+    const $genreText = $('<span data-field="genre">' + $("select").val() + "</span>");
+    $("select").replaceWith($genreText);
+    $("#playlistTitle").text(playlist.title);
+    renderPlaylistGallery();
+  }
+}
+function addSongToPlaylist(playlistId, song) {
+  const playlist = playlists.find((p) => p.id === parseInt(playlistId));
+  if (playlist) {
+    playlist.songs.push({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      duration: song.duration || "3:35",
+      downloadPath: song.downloadPath,
+    });
+    localStorage.setItem("playlists", JSON.stringify(playlists));
+    renderPlaylistGallery(); // Refresh the playlist gallery if needed
   } else {
-    alert("Please enter a title for the playlist.");
+    console.error("Playlist not found");
+  }
+}
+
+$("#playlistGallery").addClass("hidden");
+$("#myCollections").on("click", function () {
+  $("#playlistGallery").removeClass("hidden");
+  renderPlaylistGallery();
+});
+$("#createPlaylistBtn").on("click", function () {
+  $("#createPlaylistModal").removeClass("hidden");
+});
+$("#cancelCreateBtn").on("click", function () {
+  $("#createPlaylistModal").addClass("hidden");
+  resetCreateForm();
+});
+$("#addTagBtn").on("click", function () {
+  const tagText = $("#tagInput").val().trim();
+  if (tagText) {
+    const $tagElement = $(`
+                <span class="tag inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    ${tagText}
+                    <button class="ml-2 text-blue-600 hover:text-blue-800">×</button>
+                </span>
+            `);
+    $tagElement.find("button").on("click", function () {
+      $tagElement.remove();
+    });
+    $("#tagContainer").append($tagElement);
+    $("#tagInput").val("");
   }
 });
-uploadPhoto.addEventListener("click", function () {
-  document.getElementById("uploadThumbnail").click();
-});
-editPlaylist.addEventListener("click", function () {
-  const collectionId = document.getElementById("playlistEditModal").dataset.currentCollectionId;
-  if (!collectionId) return;
-
-  const updatedTitle = document.getElementById("editTitle").value.trim();
-  const updatedDescription = document.getElementById("editDescription").value.trim();
-  const updatedGenre = document.getElementById("editGenre").value.trim();
-  const fileInput = document.getElementById("editThumbnail");
-  const updatedThumbnail = fileInput && fileInput.files.length > 0 ? URL.createObjectURL(fileInput.files[0]): collections[collectionId].thumbnail;
-
-  // Tags are stored in the global 'tags' array, convert to string for storage
-  collections[collectionId].title = updatedTitle || collections[collectionId].title;
-  collections[collectionId].description = updatedDescription || collections[collectionId].description;
-  collections[collectionId].tags = tags.join(", "); // Update with joined tags
-  collections[collectionId].genre = updatedGenre || collections[collectionId].genre;
-  collections[collectionId].thumbnail = updatedThumbnail;
-
-  savePlaylist();
-  displayPlaylists();
-  EditorCLOSE("playlistEditModal");
-});
-addTag.addEventListener("click", function () {
-  const input = document.getElementById("createTags");
-  const tag = input.value.trim();
-
-  if (tag !== "" && !tags.includes(tag)) {
-    tags.push(tag);
-    input.value = "";
-    displayTags();
+$("#confirmCreateBtn").on("click", function () {
+  const title = $("#playlistTitleInput").val().trim();
+  if (!title) {
+    alert("Playlist title is required!");
+    return;
+  }
+  const description = $("#playlistDescriptionInput").val().trim();
+  const genre = $("#genreSelect").val();
+  const tags = [];
+  $("#tagContainer .tag").each(function () {
+    tags.push($(this).contents().first().text().trim());
+  });
+  const $fileInput = $("#coverUpload");
+  const file = $fileInput[0].files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      createPlaylist(title, description, genre, tags, e.target.result);
+    };
+    reader.onerror = function () {
+      alert("Failed to load cover image!");
+    };
+    reader.readAsDataURL(file);
+  } else {
+    createPlaylist(title, description, genre, tags);
   }
 });
-document.addEventListener("click", function (e) {
-  if (e.target.classList.contains("remove-tag")) {
-    const index = e.target.getAttribute("data-index");
-    tags.splice(index, 1);
-    displayTags();
+$("#playlistView").on("click", "#backToGallery", function () {
+  $("#playlistView").addClass("hidden");
+  $("#playlistGallery").removeClass("hidden");
+});
+$("#playlistView").on("click", "#editPlaylistBtn", function () {
+  $(this).addClass("hidden");
+  $("#savePlaylistBtn").removeClass("hidden");
+  enableInlineEditing();
+});
+$("#playlistView").on("click", "#savePlaylistBtn", function () {
+  $(this).addClass("hidden");
+  $("#editPlaylistBtn").removeClass("hidden");
+  savePlaylistChanges();
+});
+$("#playlistView").on("click", "#addSongBtn", function () {
+  const songTitle = prompt("Enter song title:");
+  const songArtist = prompt("Enter song artist:");
+  if (songTitle && songArtist) {
+    const playlistId = parseInt($("#playlistView").attr("data-playlist-id"));
+    const playlist = playlists.find(function (p) {
+      return p.id === playlistId;
+    });
+    if (playlist) {
+      playlist.songs.push({
+        id: Date.now(),
+        title: songTitle,
+        artist: songArtist,
+        duration: "3:00",
+      });
+      localStorage.setItem("playlists", JSON.stringify(playlists));
+      renderPlaylistView(playlist);
+    }
+  }
+});
+$("#tagInput").on("keypress", function (e) {
+  if (e.which === 13) {
+    e.preventDefault();
+    $("#addTagBtn").trigger("click");
+  }
+});
+$(document).on("keydown", function (e) {
+  if (e.key === "Escape") {
+    $("#createPlaylistModal").addClass("hidden");
+    resetCreateForm();
   }
 });
 
-document.querySelectorAll(".modalWrapper").forEach((modal) => {
-  modal.addEventListener("transitionend", function () {
-    const modalContent = modal.querySelector(".insideModal");
-    if (modal.classList.contains("visible")) {
-      modalContent.style.transform = "scale(1)";
+const $dropZone = $("#coverUpload").parent();
+$dropZone
+  .on("dragover", function (e) {
+    e.preventDefault();
+    $dropZone.addClass("bg-blue-50");
+  })
+  .on("dragleave", function (e) {
+    e.preventDefault();
+    $dropZone.removeClass("bg-blue-50");
+  })
+  .on("drop", function (e) {
+    e.preventDefault();
+    $dropZone.removeClass("bg-blue-50");
+    const files = e.originalEvent.dataTransfer.files;
+    if (files.length && files[0].type.startsWith("image/")) {
+      $("#coverUpload")[0].files = files;
     } else {
-      modalContent.style.transform = "scale(0.7)";
+      alert("Please drop an image file!");
     }
   });
-});
 
 
 
 
 
 
-//////////////////////////////////////////////////////////////////////////
-/////////  S E R V I C E  W O R K E R  ///////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+/////////  S E R V I C E  W O R K E R  ///////////////////////
+//////////////////////////////////////////////////////////////
 document.addEventListener("DOMContentLoaded", () => {
   if ("launchQueue" in window && "files" in LaunchParams.prototype) {
     launchQueue.setConsumer(async (launchParams) => {
@@ -2225,7 +2159,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
-export function loadAudioPlayer(file) {
+function loadAudioPlayer(file) {
   const dynamicArea = document.getElementById("dynamicArea");
 
   const content = `
@@ -2261,24 +2195,23 @@ export function loadAudioPlayer(file) {
 
   const audioElement = document.querySelector("#audio");
   audioElement.src = URL.createObjectURL(file);
-  audioElement.play().catch((err) => console.error("Audio playback error:",
-    err));
+  audioElement.play().catch((err) => console.error("Audio playback error:", err));
 }
 
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./serviceWorker.js')
-      .then(registration => {
-        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./serviceWorker.js")
+      .then((registration) => {
+        console.log("ServiceWorker registration successful with scope: ", registration.scope);
       })
-      .catch(error => {
-        console.log('ServiceWorker registration failed: ', error);
+      .catch((error) => {
+        console.log("ServiceWorker registration failed: ", error);
       });
   });
 
-  navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data.type === 'OPEN_FILE') {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data.type === "OPEN_FILE") {
       const fileArrayBuffer = event.data.file;
       const fileName = event.data.fileName;
       playAudioFile(fileArrayBuffer, fileName);
@@ -2286,27 +2219,27 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-export function playAudioFile(fileArrayBuffer, fileName) {
-  const blob = new Blob([fileArrayBuffer], { type: 'audio/mp3' });
+function playAudioFile(fileArrayBuffer, fileName) {
+  const blob = new Blob([fileArrayBuffer], { type: "audio/mp3" });
   const url = URL.createObjectURL(blob);
 
-  const audioPlayer = document.getElementById('audio');
+  const audioPlayer = document.getElementById("audio");
   audioPlayer.src = url;
   audioPlayer.play();
 
   console.log(`Playing: ${fileName}`);
 }
-navigator.serviceWorker.addEventListener('message', (event) => {
-  if (event.data.type === 'OPEN_FILE') {
+navigator.serviceWorker.addEventListener("message", (event) => {
+  if (event.data.type === "OPEN_FILE") {
     const fileUrl = event.data.url;
     const fileName = event.data.name;
 
     // Use the file URL in your music player
-    const audioPlayer = document.getElementById('audio');
+    const audioPlayer = document.getElementById("audio");
     audioPlayer.src = fileUrl;
     audioPlayer.play();
 
     // Optionally, display the file name
- //   document.getElementById('file-name').textContent = `Now Playing: ${fileName}`;
+    //   document.getElementById('file-name').textContent = `Now Playing: ${fileName}`;
   }
 });
