@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initializePopovers();
   loadPlaylist();
 });
-
+//----------------------------------------------------------------
 
 
 /////////  H E L P E R  Functions  ////////////////
@@ -136,7 +136,7 @@ function populateCollectionDropdown() {
     });
   });
 }
-
+//----------------------------------------------------------------
 
 
 /////////////////////////////////////////////////////////////////
@@ -478,6 +478,7 @@ skipForwardButton.addEventListener("click", skipForward);
 skipBackwardButton.addEventListener("click", skipBackward);
 shuffleButton.addEventListener("click", toggleShuffle);
 repeatButton.addEventListener("click", toggleRepeat);
+//----------------------------------------------------------------
 
 
 ///////////////////////////////////////////////////////////////
@@ -886,7 +887,7 @@ function popOverPLAY(button, song) {
     );
   }, 0);
 }
-
+//----------------------------------------------------------------
 
 
 ///////////////////////////////////////////////////////////////
@@ -999,8 +1000,6 @@ function setPage(attrs) {
   });
 }
 
-
-
 /////// L O A D I N G Animations ///////
 ///////////////////////////////////////
 $(document).on("click", "[data-transition='loaders']", function () {
@@ -1074,8 +1073,6 @@ function toggleLoadingOverlay(visible) {
   }
 }
 
-
-
 ///////// HELPER Functions /////////////
 ///////////////////////////////////////
 function randomInt(min, max) {
@@ -1111,7 +1108,7 @@ function fetchFromURL(query) {
   }
   return null; // Return null if no Artist exists
 }
-
+//----------------------------------------------------------------
 
 
 /////////////////////////////////////////////////////////////
@@ -1396,7 +1393,7 @@ function initializePopovers() {
     });
   });
 }
-
+//----------------------------------------------------------------
 
 
 //////////////////////////////////////////////////////////////
@@ -1654,7 +1651,7 @@ function initializeFavorites() {
     updateHeartIcon(songId, true);
   });
 }
-
+//----------------------------------------------------------------
 
 
 /////////////////////////////////////////////////////////////
@@ -1828,7 +1825,7 @@ function handleDragEnd(e) {
   e.target.classList.remove("dragging");
   updateQueueCount(queueList);
 }
-
+//----------------------------------------------------------------
 
 
 /////////////////////////////////////////////////////////////
@@ -2136,7 +2133,7 @@ $dropZone
       alert("Please drop an image file!");
     }
   });
-
+//----------------------------------------------------------------
 
 
 
