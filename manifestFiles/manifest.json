@@ -1,13 +1,19 @@
 {
   "id": "6988637",
-  "orientation": "portrait",
-  "description": "Stream all of your favorite music, or save them for offline streaming, for free.",
-  "background_color": "#bab9b4",
-  "theme_color": "#e0e0e0",
   "name": "MyBeats Music",
   "short_name": "MyBeats",
-  "start_url": "/",
+  "description": "Stream all of your favorite music, or save them for offline streaming, for free.",
+  "categories": [
+    "entertainment",
+    "music"
+  ],
+  "dir": "ltr",
+  "lang": "en",
+  "orientation": "portrait",
+  "background_color": "#bab9b4",
+  "theme_color": "#121212",
   "display": "standalone",
+  "start_url": "/",
   "display_override": [
     "window-controls-overlay"
   ],
@@ -61,6 +67,55 @@
       "purpose": "splashscreen"
     }
   ],
+  "splash_pages": [
+    {
+      "src": "./web/splash1.png",
+      "type": "image/png",
+      "sizes": "640x1136"
+    },
+    {
+      "src": "./web/splash2.png",
+      "type": "image/png",
+      "sizes": "750x1334"
+    },
+    {
+      "src": "./web/splash3.png",
+      "type": "image/png",
+      "sizes": "828x1792"
+    },
+    {
+      "src": "./web/splash4.png",
+      "type": "image/png",
+      "sizes": "1125x2436"
+    },
+    {
+      "src": "./web/splash5.png",
+      "type": "image/png",
+      "sizes": "1242x2208"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./Screenshot-01.png",
+      "type": "image/png",
+      "sizes": "1080x2294"
+    },
+    {
+      "src": "./Screenshot-02.png",
+      "type": "image/png",
+      "sizes": "1080x2294"
+    },
+    {
+      "src": "./Screenshot-03.png",
+      "type": "image/png",
+      "sizes": "1080x2294"
+    }
+  ],
+  "permissions": [
+    "notifications",
+    "storage",
+    "background"
+  ],
   "shortcuts": [
     {
       "name": "My Playlists",
@@ -89,13 +144,6 @@
       ]
     }
   ],
-  "categories": [
-    "entertainment",
-    "music"
-  ],
-  "dir": "ltr",
-  "scope": "/",
-  "lang": "en",
   "edge_side_panel": {
     "preferred_width": 200
   },
@@ -110,16 +158,23 @@
       "files": [
         {
           "name": "file",
-          "accept": ["image/*", "video/*"]
+          "accept": [
+            "image/*",
+            "video/*"
+          ]
         }
       ]
     }
   },
   "file_handlers": [
     {
-      "action": "/open-file",
+      "action": "/",
       "accept": {
-        "audio/*": [".mp3"]
+        "audio/*": [
+          ".mp3",
+          ".wav",
+          ".ogg"
+        ]
       }
     }
   ],
@@ -129,4 +184,5 @@
       "url": "/open-protocol?url=%s"
     }
   ]
+}
 }
