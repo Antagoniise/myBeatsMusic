@@ -146,10 +146,6 @@ function siteMap(path, query) {
         loadThis("/allArtists");
       }
       break;
-
-    default:
-      loadThis("/discover");
-      break;
   }
 }
 function siteMapLinks() {
