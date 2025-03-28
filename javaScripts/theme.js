@@ -9,7 +9,8 @@ document.addEventListener("DOMContentLoaded", function () {
     t = document.getElementById("toDarkMode"),
     o = document.getElementById("toLightModeMobile"),
     n = document.getElementById("toDarkModeMobile");
-  let l = "mybeats.cloud" === window.location.hostname ? "mybeats.cloud" : "mybeats.cloud";
+  // Adjust domain logic to include GitHub Pages domain
+  let l = ["mybeats.cloud", "antagoniise.github.io"].includes(window.location.hostname) ? window.location.hostname : "mybeats.cloud";
   const d = (function () {
       document.cookie = "testcookie=1; expires=Wed, 01-Jan-2070 00:00:01 GMT; path=/";
       const e = -1 !== document.cookie.indexOf("testcookie");
