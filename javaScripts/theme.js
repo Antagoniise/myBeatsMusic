@@ -9,8 +9,8 @@ document.addEventListener("DOMContentLoaded", function () {
     t = document.getElementById("toDarkMode"),
     o = document.getElementById("toLightModeMobile"),
     n = document.getElementById("toDarkModeMobile");
-  // Adjust domain logic to include GitHub Pages domain
-  let l = ["mybeats.cloud", "antagoniise.github.io"].includes(window.location.hostname) ? window.location.hostname : "mybeats.cloud";
+
+  // Remove domain-specific logic
   const d = (function () {
       document.cookie = "testcookie=1; expires=Wed, 01-Jan-2070 00:00:01 GMT; path=/";
       const e = -1 !== document.cookie.indexOf("testcookie");
@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
     i = () => Cookies.get("wfu-theme") || localStorage.getItem("theme"),
     s = (e) => {
       try {
-        Cookies.set("wfu-theme", e, { expires: 365, domain: l });
+        Cookies.set("wfu-theme", e, { expires: 365 });
       } catch (t) {
         localStorage.setItem("theme", e);
       }
