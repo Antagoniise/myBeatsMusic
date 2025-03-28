@@ -104,13 +104,7 @@ function siteRouter() {
 }
 function siteMap(path, query) {
   switch (path) {
-    case "/discover":
-      executeLoadingSequence();
-      clearDynamicArea();
-      setActiveLink("goHome");
-      scrollToTop();
-      discoverMusic();
-      break;
+
 
     case "/allArtists":
       executeLoadingSequence();
