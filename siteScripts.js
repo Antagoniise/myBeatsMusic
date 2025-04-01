@@ -1,5 +1,5 @@
 
-import { musicLibrary } from "https://codepen.io/ClockBlock/pen/RNwjZWa/script.js";
+import { musicLibrary } from "https://github.com/Antagoniise/myBeatsMusic/blob/320cc54fed2b1c190c63729ef8c21b5cf5ffd375/mediaFiles/songs/musicData.js";
 import $ from "https://esm.sh/jquery";
 import "https://esm.sh/jquery-ui";
  
