@@ -1,4 +1,5 @@
-import { musicLibrary } from "./mediaFiles/songs/musicData.js";
+
+import { musicLibrary } from "https://codepen.io/ClockBlock/pen/RNwjZWa/script.js";
 import $ from "https://esm.sh/jquery";
 import "https://esm.sh/jquery-ui";
  
